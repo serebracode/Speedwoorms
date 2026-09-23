@@ -39,7 +39,7 @@
       let w = 0, h = 0, dpr = 1, last = performance.now();
       const fingers = new Map();
       // fold = 0 is the long, flat resting state. fold = 1 is the short, arched resting state.
-      const worm = { fold: .82, phase: 'extend', scroll: 0, moved: false };
+      const worm = { fold: 1, phase: 'extend', scroll: 0, moved: false };
 
       function lockLandscape() {
         const tg = window.Telegram?.WebApp;
@@ -73,12 +73,21 @@
           if (worm.phase !== 'extend') { stateLabel.textContent = 'pull the rear first'; return; }
           const before = worm.fold;
           worm.fold = Math.max(0, worm.fold - forward / 220);
-          if (worm.fold !== before) { finger.moved = true; worm.moved = true; worm.scroll += forward; stateLabel.textContent = 'front forward — extend'; }
+          if (worm.fold !== before) {
+            finger.moved = true; worm.moved = true;
+            // Camera holds the worm at centre; this is the world sliding right beneath it.
+            worm.scroll += (before - worm.fold) * 220;
+            stateLabel.textContent = 'front forward — extend';
+          }
         } else {
           if (worm.phase !== 'fold') { stateLabel.textContent = 'front goes first'; return; }
           const before = worm.fold;
           worm.fold = Math.min(1, worm.fold + forward / 220);
-          if (worm.fold !== before) { finger.moved = true; worm.moved = true; worm.scroll += forward; stateLabel.textContent = 'rear follows — fold'; }
+          if (worm.fold !== before) {
+            finger.moved = true; worm.moved = true;
+            worm.scroll += (worm.fold - before) * 220;
+            stateLabel.textContent = 'rear follows — fold';
+          }
         }
       }
       function removePointer(event) {
@@ -95,7 +104,7 @@
       canvas.addEventListener('pointercancel', removePointer);
       canvas.addEventListener('contextmenu', event => event.preventDefault());
       document.getElementById('reset').addEventListener('click', () => {
-        fingers.clear(); Object.assign(worm, { fold: .82, phase: 'extend', scroll: 0, moved: false });
+        fingers.clear(); Object.assign(worm, { fold: 1, phase: 'extend', scroll: 0, moved: false });
         hint.style.opacity = '1'; stateLabel.textContent = 'front forward';
       });
 
@@ -143,7 +152,7 @@
         ctx.clearRect(0, 0, w, h);
         const baseY = h * .69;
         ctx.save();
-        ctx.strokeStyle = '#181517'; ctx.lineWidth = 1; ctx.setLineDash([2, 12]); ctx.lineDashOffset = worm.scroll;
+        ctx.strokeStyle = '#201b1e'; ctx.lineWidth = 1; ctx.setLineDash([3, 15]); ctx.lineDashOffset = -worm.scroll;
         ctx.beginPath(); ctx.moveTo(0, baseY + 48); ctx.lineTo(w, baseY + 48); ctx.stroke();
         ctx.restore();
 
