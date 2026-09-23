@@ -99,8 +99,8 @@
       canvas.addEventListener('contextmenu', event => event.preventDefault());
       document.getElementById('reset').addEventListener('click', () => {
         fingers.clear();
-        Object.assign(worm, { fold: 1, targetFold: 1, scroll: 0, moved: false, lastStep: 0, expected: 'left', response: 14 });
-        hint.style.opacity = '1'; stateLabel.textContent = 'left, then right';
+        Object.assign(worm, { fold: 1, targetFold: 1, scroll: 0, moved: false, lastStep: 0, expected: 'right', response: 14 });
+        hint.style.opacity = '1'; stateLabel.textContent = 'right, then left';
       });
 
       // Central arch has fixed arclength. Its chord shortens while its height grows.
