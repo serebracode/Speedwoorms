@@ -146,13 +146,13 @@
         const baseY = h * .69;
         // Sparse ground marks: the only visible evidence that the world moves.
         ctx.save();
-        ctx.fillStyle = '#282326';
+        ctx.fillStyle = '#5a5056';
         const spacing = 176;
         const offset = worm.scroll % spacing;
         for (let i = -1; i <= Math.ceil(w / spacing) + 1; i++) {
           const x = i * spacing - offset;
           const y = baseY + 24 + ((i * 37) % 3) * 22;
-          ctx.beginPath(); ctx.arc(x, y, 1.25, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.arc(x, y, 2, 0, Math.PI * 2); ctx.fill();
         }
         ctx.restore();
 
@@ -165,10 +165,6 @@
         ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#ff9fa8'; ctx.lineWidth = width;
         wormPath(center, baseY, worm.fold, bodyLength); ctx.stroke(); ctx.restore();
 
-        for (const finger of fingers.values()) {
-          ctx.save(); ctx.globalAlpha = .42; ctx.strokeStyle = '#ffb4b9'; ctx.lineWidth = 1;
-          ctx.beginPath(); ctx.arc(finger.x, h * .5, 19, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
-        }
         if (!worm.moved) {
           ctx.fillStyle = '#343034'; ctx.font = '10px Arial'; ctx.textAlign = 'center';
           ctx.fillText('RIGHT  →     THEN     LEFT  →', center, baseY - 42);
