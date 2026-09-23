@@ -10,6 +10,7 @@ The visual language is deliberately reduced to a black field, sparse white backg
 2. The player confirms **READY**.
 3. The local prototype shows a room screen and can launch a test countdown: **3 · 2 · 1 · GO**.
 4. In a networked room, every joined player must be ready before the host starts the same server-timed countdown.
+5. When the distance line is complete, a `SCORE` table shows place and player name. The local build contains the single local result; the server will supply the full finish order in shared races.
 
 The Pages build is a local interaction prototype. It does not yet create a shared room or connect real players.
 
@@ -83,4 +84,4 @@ Telegram Mini Apps (Bot API 8+) provide `lockOrientation()`. It locks the curren
 1. Tune stroke threshold, rhythm tolerance and distance per valid cycle on real phones.
 2. Replace the local lobby preview with WebSocket rooms and Telegram identity validation.
 3. Add host controls, real ready states and a server-timed countdown.
-4. Add finish state, rematch and lightweight results.
+4. Add server-provided finish order, rematch and lightweight results.
