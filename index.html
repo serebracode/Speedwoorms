@@ -12,22 +12,22 @@
     body { font-family: Arial, Helvetica, sans-serif; touch-action: none; user-select: none; }
     canvas { display: block; width: 100vw; height: 100vh; }
     .top { position: fixed; z-index: 2; inset: max(12px, env(safe-area-inset-top)) 18px auto; display: flex; justify-content: space-between; align-items: start; pointer-events: none; }
-    .brand { font-size: 12px; line-height: 1; font-weight: 800; letter-spacing: .17em; color: #ff5cab; text-transform: uppercase; }
+    .brand { font-size: 12px; line-height: 1; font-weight: 800; letter-spacing: .17em; color: #ff9fa8; text-transform: uppercase; }
     .sub { margin-top: 7px; color: #777; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
     .distance { color: #f5f2f4; font-size: 18px; line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
     .meter { margin-top: 7px; color: #777; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
-    .hint { position: fixed; z-index: 2; left: 50%; bottom: max(17px, env(safe-area-inset-bottom)); width: min(560px, calc(100vw - 40px)); transform: translateX(-50%); color: #858185; font-size: 11px; line-height: 1.35; letter-spacing: .04em; text-align: center; transition: opacity .35s; pointer-events: none; }
-    .hint strong { color: #ff75b8; font-weight: 700; }
+    .hint { position: fixed; z-index: 2; left: 50%; bottom: max(17px, env(safe-area-inset-bottom)); width: min(580px, calc(100vw - 40px)); transform: translateX(-50%); color: #858185; font-size: 11px; line-height: 1.35; letter-spacing: .04em; text-align: center; transition: opacity .35s; pointer-events: none; }
+    .hint strong { color: #ffb4b9; font-weight: 700; }
     button { position: fixed; z-index: 3; right: 15px; bottom: max(13px, env(safe-area-inset-bottom)); width: 35px; height: 35px; border: 1px solid #302b2e; border-radius: 50%; background: #0d0c0d; color: #aaa; font-size: 17px; line-height: 1; }
   </style>
 </head>
 <body>
   <canvas id="game" aria-label="Speedwoorms touch prototype"></canvas>
   <div class="top">
-    <div><div class="brand">Speedwoorms</div><div class="sub" id="state">two thumbs to crawl</div></div>
+    <div><div class="brand">Speedwoorms</div><div class="sub" id="state">front, then rear</div></div>
     <div><div class="distance"><span id="distance">0</span> m</div><div class="meter">opponent in outline</div></div>
   </div>
-  <div class="hint" id="hint">Touch both sides. Move your thumbs <strong>toward the centre</strong>, then release.</div>
+  <div class="hint" id="hint"><strong>Left thumb:</strong> move the front left. <strong>Right thumb:</strong> pull the rear after it.</div>
   <button id="reset" aria-label="Restart">↻</button>
   <script>
     (() => {
@@ -36,145 +36,106 @@
       const stateLabel = document.getElementById('state');
       const distanceLabel = document.getElementById('distance');
       const hint = document.getElementById('hint');
-      let w = 0, h = 0, dpr = 1, last = performance.now();
+      let w = 0, h = 0, dpr = 1, last = performance.now(), camera = 0;
       const fingers = new Map();
-      const worm = { distance: 0, speed: 0, compression: 0, targetCompression: 0, pop: 0, phase: 'waiting', strokes: 0 };
-
+      // World coordinates: progress is to the left, therefore lower x means forward.
+      const worm = { front: 0, rear: 270, speed: 0, progress: 0, moved: false };
       function lockLandscape() {
         const tg = window.Telegram?.WebApp;
-        tg?.ready?.();
-        tg?.expand?.();
-        if (tg?.isVersionAtLeast?.('8.0')) {
-          tg.requestFullscreen?.();
-          tg.lockOrientation?.();
-        } else {
-          screen.orientation?.lock?.('landscape').catch(() => {});
-        }
+        tg?.ready?.(); tg?.expand?.();
+        if (tg?.isVersionAtLeast?.('8.0')) { tg.requestFullscreen?.(); tg.lockOrientation?.(); }
+        else screen.orientation?.lock?.('landscape').catch(() => {});
       }
       function resize() {
-        dpr = Math.min(window.devicePixelRatio || 1, 2);
-        w = window.innerWidth; h = window.innerHeight;
+        dpr = Math.min(window.devicePixelRatio || 1, 2); w = window.innerWidth; h = window.innerHeight;
         canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       }
-      window.addEventListener('resize', resize); resize();
-      window.addEventListener('orientationchange', lockLandscape);
+      window.addEventListener('resize', resize); window.addEventListener('orientationchange', lockLandscape); resize();
 
-      function sideFor(x) { return x < w / 2 ? 'left' : 'right'; }
       function addPointer(event) {
-        event.preventDefault();
-        lockLandscape();
-        const side = sideFor(event.clientX);
-        for (const item of fingers.values()) if (item.side === side) return;
-        fingers.set(event.pointerId, { side, startX: event.clientX, x: event.clientX, y: event.clientY });
+        event.preventDefault(); lockLandscape();
+        const side = event.clientX < w / 2 ? 'front' : 'rear';
+        for (const finger of fingers.values()) if (finger.side === side) return;
+        fingers.set(event.pointerId, { side, x: event.clientX });
         canvas.setPointerCapture?.(event.pointerId);
         hint.style.opacity = '0';
       }
       function movePointer(event) {
-        const item = fingers.get(event.pointerId); if (item) { item.x = event.clientX; item.y = event.clientY; }
-      }
-      function removePointer(event) {
-        if (!fingers.has(event.pointerId)) return;
-        const sides = [...fingers.values()].map(p => p.side);
-        if (sides.includes('left') && sides.includes('right') && worm.compression > .08) {
-          worm.speed += 130 + worm.compression * 380;
-          worm.pop = Math.max(worm.pop, worm.compression);
-          worm.strokes++;
+        const finger = fingers.get(event.pointerId); if (!finger) return;
+        const dx = event.clientX - finger.x; finger.x = event.clientX;
+        if (finger.side === 'front') {
+          worm.front += dx;
+          worm.front = Math.min(worm.front, worm.rear - 75);
+          stateLabel.textContent = 'front forward — stretch';
+        } else {
+          worm.rear += dx;
+          worm.rear = Math.max(worm.rear, worm.front + 75);
+          stateLabel.textContent = 'rear follows — fold';
         }
-        fingers.delete(event.pointerId);
+        worm.moved = true;
       }
+      function removePointer(event) { fingers.delete(event.pointerId); }
       canvas.addEventListener('pointerdown', addPointer);
       canvas.addEventListener('pointermove', movePointer);
       canvas.addEventListener('pointerup', removePointer);
       canvas.addEventListener('pointercancel', removePointer);
       canvas.addEventListener('contextmenu', event => event.preventDefault());
-
       document.getElementById('reset').addEventListener('click', () => {
-        fingers.clear();
-        Object.assign(worm, { distance: 0, speed: 0, compression: 0, targetCompression: 0, pop: 0, phase: 'waiting', strokes: 0 });
-        hint.style.opacity = '1';
+        fingers.clear(); Object.assign(worm, { front: 0, rear: 270, speed: 0, progress: 0, moved: false }); camera = 0; hint.style.opacity = '1'; stateLabel.textContent = 'front, then rear';
       });
 
-      function update(dt) {
-        const left = [...fingers.values()].find(p => p.side === 'left');
-        const right = [...fingers.values()].find(p => p.side === 'right');
-        if (left && right) {
-          const inward = Math.max(0, left.x - left.startX) + Math.max(0, right.startX - right.x);
-          worm.targetCompression = Math.min(.78, inward / Math.max(130, w * .28));
-          worm.phase = worm.targetCompression > .08 ? 'contract' : 'ready';
-        } else {
-          worm.targetCompression = 0;
-          worm.phase = fingers.size ? 'find other thumb' : 'release';
-        }
-        worm.compression += (worm.targetCompression - worm.compression) * Math.min(1, dt * 13);
-        worm.speed *= Math.pow(.19, dt);
-        worm.distance += worm.speed * dt / 9;
-        worm.pop *= Math.pow(.004, dt);
-        if (worm.strokes) stateLabel.textContent = worm.phase === 'contract' ? 'squeeze the worm' : worm.phase === 'release' ? 'release — crawl' : 'two thumbs to crawl';
-        distanceLabel.textContent = Math.floor(worm.distance);
-      }
-
       function archPath(tailX, headX, baseY, archWidth, archHeight) {
-        const centre = (tailX + headX) / 2;
-        const left = centre - archWidth / 2;
-        const right = centre + archWidth / 2;
-        ctx.beginPath();
-        ctx.moveTo(tailX, baseY);
-        ctx.lineTo(left, baseY);
+        const centre = (tailX + headX) / 2, left = centre - archWidth / 2, right = centre + archWidth / 2;
+        ctx.beginPath(); ctx.moveTo(headX, baseY); ctx.lineTo(left, baseY);
         ctx.bezierCurveTo(left + archWidth * .02, baseY - archHeight, right - archWidth * .02, baseY - archHeight, right, baseY);
-        ctx.lineTo(headX, baseY);
+        ctx.lineTo(tailX, baseY);
       }
       function drawOutline(tailX, headX, baseY, archWidth, archHeight, width) {
-        ctx.save();
-        ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-        ctx.strokeStyle = '#d76e9f'; ctx.lineWidth = width;
-        archPath(tailX, headX, baseY, archWidth, archHeight); ctx.stroke();
-        ctx.strokeStyle = '#050505'; ctx.lineWidth = width - 5;
-        archPath(tailX, headX, baseY, archWidth, archHeight); ctx.stroke();
+        ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        ctx.strokeStyle = '#d76e9f'; ctx.lineWidth = width; archPath(tailX, headX, baseY, archWidth, archHeight); ctx.stroke();
+        ctx.strokeStyle = '#050505'; ctx.lineWidth = width - 5; archPath(tailX, headX, baseY, archWidth, archHeight); ctx.stroke();
         ctx.restore();
+      }
+      function update(dt) {
+        const centre = (worm.front + worm.rear) / 2;
+        camera += (centre - camera) * Math.min(1, dt * 5);
+        worm.progress = Math.max(worm.progress, -centre);
+        distanceLabel.textContent = Math.floor(worm.progress / 11);
       }
       function draw() {
         ctx.clearRect(0, 0, w, h);
         const baseY = h * .69;
-        const scroll = worm.distance * 12;
-        ctx.save();
-        ctx.strokeStyle = '#181517'; ctx.lineWidth = 1; ctx.setLineDash([2, 12]); ctx.lineDashOffset = -scroll;
-        ctx.beginPath(); ctx.moveTo(0, baseY + 52); ctx.lineTo(w, baseY + 52); ctx.stroke();
-        ctx.restore();
+        ctx.save(); ctx.strokeStyle = '#181517'; ctx.lineWidth = 1; ctx.setLineDash([2, 12]); ctx.lineDashOffset = worm.progress * .9;
+        ctx.beginPath(); ctx.moveTo(0, baseY + 46); ctx.lineTo(w, baseY + 46); ctx.stroke(); ctx.restore();
 
-        const restingLength = Math.min(620, w * .72);
-        const length = restingLength * (1 - worm.compression * .22);
-        const centre = w * .51 + Math.min(18, worm.speed * .025);
-        const tailX = centre - length / 2;
-        const headX = centre + length / 2;
-        const archHeight = 12 + worm.compression * Math.min(230, h * .48) + worm.pop * 26;
-        const archWidth = Math.max(88, length * (.2 + worm.compression * .24));
-        const thickness = Math.max(24, Math.min(38, h * .075));
+        const headX = w * .49 + worm.front - camera;
+        const tailX = w * .49 + worm.rear - camera;
+        const separation = worm.rear - worm.front;
+        const fold = Math.max(0, Math.min(1, (300 - separation) / 205));
+        const archHeight = 8 + fold * Math.min(165, h * .34);
+        const archWidth = Math.max(62, Math.min(separation * .56, 90 + fold * 105));
+        const thickness = Math.max(21, Math.min(31, h * .06));
 
-        // Opponent: only the contour, kept behind the player's solid worm.
-        drawOutline(tailX - 120, headX - 120, baseY + 47, archWidth * .82, Math.max(12, archHeight * .68), thickness);
+        // Rival stays behind and is only a hollow contour.
+        drawOutline(tailX + 132, headX + 132, baseY + 42, archWidth * .84, Math.max(8, archHeight * .68), thickness);
 
-        // Player: one unbroken, fully solid pink body.
-        ctx.save();
-        ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-        ctx.shadowColor = '#ff2d93'; ctx.shadowBlur = 15 + worm.compression * 20;
+        // Player is a fully solid, unbroken pink body.
+        ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        ctx.shadowColor = '#ff708a'; ctx.shadowBlur = 11 + fold * 13;
         ctx.strokeStyle = '#ff9fa8'; ctx.lineWidth = thickness;
-        archPath(tailX, headX, baseY, archWidth, archHeight); ctx.stroke();
-        ctx.restore();
+        archPath(tailX, headX, baseY, archWidth, archHeight); ctx.stroke(); ctx.restore();
 
         for (const finger of fingers.values()) {
           ctx.save(); ctx.globalAlpha = .42; ctx.strokeStyle = '#ffb4b9'; ctx.lineWidth = 1;
-          ctx.beginPath(); ctx.arc(finger.x, finger.y, 19, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+          ctx.beginPath(); ctx.arc(finger.x, h * .5, 19, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
         }
-        if (worm.distance < 1 && fingers.size === 0) {
+        if (!worm.moved) {
           ctx.fillStyle = '#343034'; ctx.font = '10px Arial'; ctx.textAlign = 'center';
-          ctx.fillText('YOUR WORM', centre, baseY - 52);
+          ctx.fillText('FRONT  ←                         REAR', w * .5, baseY - 40);
         }
       }
-      function loop(now) {
-        const dt = Math.min(.05, (now - last) / 1000); last = now;
-        update(dt); draw(); requestAnimationFrame(loop);
-      }
+      function loop(now) { const dt = Math.min(.05, (now - last) / 1000); last = now; update(dt); draw(); requestAnimationFrame(loop); }
       requestAnimationFrame(loop);
     })();
   </script>
