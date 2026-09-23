@@ -146,13 +146,13 @@
         const baseY = h * .69;
         // Sparse ground marks: the only visible evidence that the world moves.
         ctx.save();
-        ctx.fillStyle = '#5a5056';
+        ctx.fillStyle = '#ffffff';
         const spacing = 176;
         const offset = worm.scroll % spacing;
         for (let i = -1; i <= Math.ceil(w / spacing) + 1; i++) {
           const x = i * spacing - offset;
           const y = baseY + 24 + ((i * 37) % 3) * 22;
-          ctx.beginPath(); ctx.arc(x, y, 2, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.arc(x, y, 1.7, 0, Math.PI * 2); ctx.fill();
         }
         ctx.restore();
 
@@ -160,7 +160,7 @@
         const width = Math.max(21, Math.min(31, h * .06));
         const center = w * .5;
         // The rival is deliberately behind the player and is a contour only.
-        drawOutline(center + 14, baseY + 38, .52, bodyLength, width);
+        drawOutline(center + 14, baseY, .52, bodyLength, width);
         // The player's body has a fixed length and is completely solid.
         ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#ff9fa8'; ctx.lineWidth = width;
         wormPath(center, baseY, worm.fold, bodyLength); ctx.stroke(); ctx.restore();
