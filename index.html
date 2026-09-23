@@ -41,23 +41,17 @@
       // fold = 0 is the long, flat resting state. fold = 1 is the short, arched resting state.
       const worm = { fold: 1, targetFold: 1, scroll: 0, moved: false, lastStep: 0, expected: 'right', response: 14 };
 
-      function lockLandscape() {
-        const tg = window.Telegram?.WebApp;
-        tg?.ready?.(); tg?.expand?.();
-        if (tg?.isVersionAtLeast?.('8.0')) { tg.requestFullscreen?.(); tg.lockOrientation?.(); }
-        else screen.orientation?.lock?.('landscape').catch(() => {});
-      }
+      // Portrait is the native layout. No orientation lock or device rotation is requested.
       function resize() {
         dpr = Math.min(window.devicePixelRatio || 1, 2); w = window.innerWidth; h = window.innerHeight;
         canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       }
       window.addEventListener('resize', resize);
-      window.addEventListener('orientationchange', lockLandscape);
       resize();
 
       function addPointer(event) {
-        event.preventDefault(); lockLandscape();
+        event.preventDefault();
         const side = event.clientX < w / 2 ? 'left' : 'right';
         for (const finger of fingers.values()) if (finger.side === side) return;
         fingers.set(event.pointerId, { side, x: event.clientX, leftTravel: 0, armed: true });
@@ -162,7 +156,7 @@
         }
         ctx.restore();
 
-        const bodyLength = Math.min(360, w * .5);
+        const bodyLength = Math.min(360, w * .76);
         const width = Math.max(21, Math.min(31, h * .06));
         const center = w * .5;
         // The rival is deliberately behind the player and is a contour only.
