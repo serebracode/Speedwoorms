@@ -19,22 +19,16 @@
     .hint { position: fixed; z-index: 2; left: 50%; bottom: max(17px, env(safe-area-inset-bottom)); width: min(560px, calc(100vw - 40px)); transform: translateX(-50%); color: #858185; font-size: 11px; line-height: 1.35; letter-spacing: .04em; text-align: center; transition: opacity .35s; pointer-events: none; }
     .hint strong { color: #ff75b8; font-weight: 700; }
     button { position: fixed; z-index: 3; right: 15px; bottom: max(13px, env(safe-area-inset-bottom)); width: 35px; height: 35px; border: 1px solid #302b2e; border-radius: 50%; background: #0d0c0d; color: #aaa; font-size: 17px; line-height: 1; }
-    @media (orientation: portrait) {
-      .rotate { display: grid; }
-    }
-    .rotate { display: none; position: fixed; z-index: 4; inset: 0; place-items: center; padding: 32px; background: #050505; color: #ff6db4; text-align: center; font: 700 18px/1.3 Arial, sans-serif; letter-spacing: .04em; }
-    .rotate span { display: block; margin-top: 10px; color: #777; font-size: 12px; font-weight: normal; }
   </style>
 </head>
 <body>
   <canvas id="game" aria-label="Speedwoorms touch prototype"></canvas>
   <div class="top">
     <div><div class="brand">Speedwoorms</div><div class="sub" id="state">two thumbs to crawl</div></div>
-    <div><div class="distance"><span id="distance">0</span> m</div><div class="meter">one pink worm</div></div>
+    <div><div class="distance"><span id="distance">0</span> m</div><div class="meter">opponent in outline</div></div>
   </div>
   <div class="hint" id="hint">Touch both sides. Move your thumbs <strong>toward the centre</strong>, then release.</div>
   <button id="reset" aria-label="Restart">↻</button>
-  <div class="rotate">TURN THE PHONE<span>This small creature insists on landscape.</span></div>
   <script>
     (() => {
       const canvas = document.getElementById('game');
@@ -42,10 +36,21 @@
       const stateLabel = document.getElementById('state');
       const distanceLabel = document.getElementById('distance');
       const hint = document.getElementById('hint');
-      const reset = document.getElementById('reset');
       let w = 0, h = 0, dpr = 1, last = performance.now();
       const fingers = new Map();
-      const worm = { distance: 0, speed: 0, compression: 0, targetCompression: 0, lastCompression: 0, pop: 0, phase: 'waiting', strokes: 0 };
+      const worm = { distance: 0, speed: 0, compression: 0, targetCompression: 0, pop: 0, phase: 'waiting', strokes: 0 };
+
+      function lockLandscape() {
+        const tg = window.Telegram?.WebApp;
+        tg?.ready?.();
+        tg?.expand?.();
+        if (tg?.isVersionAtLeast?.('8.0')) {
+          tg.requestFullscreen?.();
+          tg.lockOrientation?.();
+        } else {
+          screen.orientation?.lock?.('landscape').catch(() => {});
+        }
+      }
       function resize() {
         dpr = Math.min(window.devicePixelRatio || 1, 2);
         w = window.innerWidth; h = window.innerHeight;
@@ -53,10 +58,12 @@
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       }
       window.addEventListener('resize', resize); resize();
+      window.addEventListener('orientationchange', lockLandscape);
 
       function sideFor(x) { return x < w / 2 ? 'left' : 'right'; }
       function addPointer(event) {
         event.preventDefault();
+        lockLandscape();
         const side = sideFor(event.clientX);
         for (const item of fingers.values()) if (item.side === side) return;
         fingers.set(event.pointerId, { side, startX: event.clientX, x: event.clientX, y: event.clientY });
@@ -64,13 +71,12 @@
         hint.style.opacity = '0';
       }
       function movePointer(event) {
-        const item = fingers.get(event.pointerId); if (!item) return;
-        item.x = event.clientX; item.y = event.clientY;
+        const item = fingers.get(event.pointerId); if (item) { item.x = event.clientX; item.y = event.clientY; }
       }
       function removePointer(event) {
         if (!fingers.has(event.pointerId)) return;
-        const hadBoth = [...fingers.values()].some(p => p.side === 'left') && [...fingers.values()].some(p => p.side === 'right');
-        if (hadBoth && worm.compression > .08) {
+        const sides = [...fingers.values()].map(p => p.side);
+        if (sides.includes('left') && sides.includes('right') && worm.compression > .08) {
           worm.speed += 130 + worm.compression * 380;
           worm.pop = Math.max(worm.pop, worm.compression);
           worm.strokes++;
@@ -81,14 +87,13 @@
       canvas.addEventListener('pointermove', movePointer);
       canvas.addEventListener('pointerup', removePointer);
       canvas.addEventListener('pointercancel', removePointer);
-      canvas.addEventListener('contextmenu', e => e.preventDefault());
+      canvas.addEventListener('contextmenu', event => event.preventDefault());
 
-      function resetGame() {
+      document.getElementById('reset').addEventListener('click', () => {
         fingers.clear();
-        Object.assign(worm, { distance: 0, speed: 0, compression: 0, targetCompression: 0, lastCompression: 0, pop: 0, phase: 'waiting', strokes: 0 });
+        Object.assign(worm, { distance: 0, speed: 0, compression: 0, targetCompression: 0, pop: 0, phase: 'waiting', strokes: 0 });
         hint.style.opacity = '1';
-      }
-      reset.addEventListener('click', resetGame);
+      });
 
       function update(dt) {
         const left = [...fingers.values()].find(p => p.side === 'left');
@@ -105,59 +110,70 @@
         worm.speed *= Math.pow(.19, dt);
         worm.distance += worm.speed * dt / 9;
         worm.pop *= Math.pow(.004, dt);
-        if (worm.strokes > 0) stateLabel.textContent = worm.phase === 'contract' ? 'squeeze the worm' : worm.phase === 'release' ? 'release — crawl' : 'two thumbs to crawl';
+        if (worm.strokes) stateLabel.textContent = worm.phase === 'contract' ? 'squeeze the worm' : worm.phase === 'release' ? 'release — crawl' : 'two thumbs to crawl';
         distanceLabel.textContent = Math.floor(worm.distance);
       }
 
-      function roundedLine(x1, y1, x2, y2, color, width, alpha = 1) {
-        ctx.save(); ctx.globalAlpha = alpha; ctx.strokeStyle = color; ctx.lineWidth = width;
-        ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore();
+      function archPath(tailX, headX, baseY, archWidth, archHeight) {
+        const centre = (tailX + headX) / 2;
+        const left = centre - archWidth / 2;
+        const right = centre + archWidth / 2;
+        ctx.beginPath();
+        ctx.moveTo(tailX, baseY);
+        ctx.lineTo(left, baseY);
+        ctx.bezierCurveTo(left + archWidth * .02, baseY - archHeight, right - archWidth * .02, baseY - archHeight, right, baseY);
+        ctx.lineTo(headX, baseY);
       }
-      function draw(dt) {
+      function drawOutline(tailX, headX, baseY, archWidth, archHeight, width) {
+        ctx.save();
+        ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        ctx.strokeStyle = '#d76e9f'; ctx.lineWidth = width;
+        archPath(tailX, headX, baseY, archWidth, archHeight); ctx.stroke();
+        ctx.strokeStyle = '#050505'; ctx.lineWidth = width - 5;
+        archPath(tailX, headX, baseY, archWidth, archHeight); ctx.stroke();
+        ctx.restore();
+      }
+      function draw() {
         ctx.clearRect(0, 0, w, h);
-        const ground = h * .69;
+        const baseY = h * .69;
         const scroll = worm.distance * 12;
         ctx.save();
         ctx.strokeStyle = '#181517'; ctx.lineWidth = 1; ctx.setLineDash([2, 12]); ctx.lineDashOffset = -scroll;
-        ctx.beginPath(); ctx.moveTo(0, ground + 52); ctx.lineTo(w, ground + 52); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, baseY + 52); ctx.lineTo(w, baseY + 52); ctx.stroke();
         ctx.restore();
 
-        const restingLength = Math.min(350, w * .42);
-        const length = restingLength * (1 - worm.compression * .58);
-        const center = w * .5 + Math.min(18, worm.speed * .025);
-        const tailX = center - length / 2;
-        const headX = center + length / 2;
-        const arc = 12 + worm.compression * Math.min(125, h * .25) + worm.pop * 26;
-        const baseY = ground - 3;
+        const restingLength = Math.min(620, w * .72);
+        const length = restingLength * (1 - worm.compression * .22);
+        const centre = w * .51 + Math.min(18, worm.speed * .025);
+        const tailX = centre - length / 2;
+        const headX = centre + length / 2;
+        const archHeight = 12 + worm.compression * Math.min(230, h * .48) + worm.pop * 26;
+        const archWidth = Math.max(88, length * (.2 + worm.compression * .24));
+        const thickness = Math.max(24, Math.min(38, h * .075));
 
-        // Very faint ghost: the future second player.
-        ctx.save(); ctx.globalAlpha = .13; ctx.strokeStyle = '#ff62ad'; ctx.lineWidth = Math.max(12, h * .04); ctx.lineCap = 'round';
-        ctx.beginPath(); ctx.moveTo(tailX - 190, baseY + 48); ctx.bezierCurveTo(tailX - 120, baseY + 40, headX - 250, baseY + 48, headX - 160, baseY + 48); ctx.stroke(); ctx.restore();
+        // Opponent: only the contour, kept behind the player's solid worm.
+        drawOutline(tailX - 120, headX - 120, baseY + 47, archWidth * .82, Math.max(12, archHeight * .68), thickness);
 
+        // Player: one unbroken, fully solid pink body.
         ctx.save();
         ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-        ctx.shadowColor = '#ff2d93'; ctx.shadowBlur = 16 + worm.compression * 22;
-        ctx.strokeStyle = '#ff56aa'; ctx.lineWidth = Math.max(24, Math.min(38, h * .075));
-        ctx.beginPath();
-        ctx.moveTo(tailX, baseY);
-        ctx.bezierCurveTo(tailX + length * .26, baseY - arc, headX - length * .26, baseY - arc, headX, baseY);
-        ctx.stroke();
+        ctx.shadowColor = '#ff2d93'; ctx.shadowBlur = 15 + worm.compression * 20;
+        ctx.strokeStyle = '#ff9fa8'; ctx.lineWidth = thickness;
+        archPath(tailX, headX, baseY, archWidth, archHeight); ctx.stroke();
         ctx.restore();
 
-        // Finger affordances only while touching.
         for (const finger of fingers.values()) {
-          ctx.save(); ctx.globalAlpha = .42; ctx.strokeStyle = '#ff7cbe'; ctx.lineWidth = 1;
+          ctx.save(); ctx.globalAlpha = .42; ctx.strokeStyle = '#ffb4b9'; ctx.lineWidth = 1;
           ctx.beginPath(); ctx.arc(finger.x, finger.y, 19, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
         }
-
         if (worm.distance < 1 && fingers.size === 0) {
-          ctx.fillStyle = '#343034'; ctx.font = '10px Arial'; ctx.textAlign = 'center'; ctx.letterSpacing = '1px';
-          ctx.fillText('YOUR WORM', center, baseY - 52);
+          ctx.fillStyle = '#343034'; ctx.font = '10px Arial'; ctx.textAlign = 'center';
+          ctx.fillText('YOUR WORM', centre, baseY - 52);
         }
       }
       function loop(now) {
         const dt = Math.min(.05, (now - last) / 1000); last = now;
-        update(dt); draw(dt); requestAnimationFrame(loop);
+        update(dt); draw(); requestAnimationFrame(loop);
       }
       requestAnimationFrame(loop);
     })();
