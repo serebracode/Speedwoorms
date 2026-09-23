@@ -151,9 +151,16 @@
       function draw() {
         ctx.clearRect(0, 0, w, h);
         const baseY = h * .69;
+        // Sparse ground marks: the only visible evidence that the world moves.
         ctx.save();
-        ctx.strokeStyle = '#201b1e'; ctx.lineWidth = 1; ctx.setLineDash([3, 15]); ctx.lineDashOffset = -worm.scroll;
-        ctx.beginPath(); ctx.moveTo(0, baseY + 48); ctx.lineTo(w, baseY + 48); ctx.stroke();
+        ctx.fillStyle = '#282326';
+        const spacing = 176;
+        const offset = worm.scroll % spacing;
+        for (let i = -1; i <= Math.ceil(w / spacing) + 1; i++) {
+          const x = i * spacing - offset;
+          const y = baseY + 24 + ((i * 37) % 3) * 22;
+          ctx.beginPath(); ctx.arc(x, y, 1.25, 0, Math.PI * 2); ctx.fill();
+        }
         ctx.restore();
 
         const bodyLength = Math.min(360, w * .5);
