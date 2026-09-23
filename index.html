@@ -39,7 +39,7 @@
       let w = 0, h = 0, dpr = 1, last = performance.now(), camera = 0;
       const fingers = new Map();
       // World coordinates: progress is to the left, therefore lower x means forward.
-      const worm = { front: 0, rear: 270, speed: 0, progress: 0, moved: false };
+      const worm = { front: 0, rear: 300, speed: 0, progress: 0, moved: false, phase: 'front', rearMoved: false };
       function lockLandscape() {
         const tg = window.Telegram?.WebApp;
         tg?.ready?.(); tg?.expand?.();
@@ -64,25 +64,33 @@
       function movePointer(event) {
         const finger = fingers.get(event.pointerId); if (!finger) return;
         const dx = event.clientX - finger.x; finger.x = event.clientX;
+        if (dx >= 0) return; // Racing only advances left in this first prototype.
         if (finger.side === 'front') {
-          worm.front += dx;
-          worm.front = Math.min(worm.front, worm.rear - 75);
-          stateLabel.textContent = 'front forward — stretch';
+          if (worm.phase !== 'front') { stateLabel.textContent = 'rear must follow first'; return; }
+          const next = Math.max(worm.rear - 465, worm.front + dx);
+          const moved = next - worm.front;
+          worm.front = next;
+          if (moved < 0) { worm.phase = 'rear'; worm.rearMoved = false; worm.moved = true; stateLabel.textContent = 'front forward — now pull rear'; }
         } else {
-          worm.rear += dx;
-          worm.rear = Math.max(worm.rear, worm.front + 75);
-          stateLabel.textContent = 'rear follows — fold';
+          if (worm.phase !== 'rear') { stateLabel.textContent = 'front goes first'; return; }
+          const next = Math.max(worm.front + 75, worm.rear + dx);
+          const moved = next - worm.rear;
+          worm.rear = next;
+          if (moved < 0) { worm.rearMoved = true; worm.moved = true; stateLabel.textContent = 'rear follows — fold'; }
         }
-        worm.moved = true;
       }
-      function removePointer(event) { fingers.delete(event.pointerId); }
+      function removePointer(event) {
+        const finger = fingers.get(event.pointerId);
+        if (finger?.side === 'rear' && worm.rearMoved) { worm.phase = 'front'; worm.rearMoved = false; stateLabel.textContent = 'front forward — stretch'; }
+        fingers.delete(event.pointerId);
+      }
       canvas.addEventListener('pointerdown', addPointer);
       canvas.addEventListener('pointermove', movePointer);
       canvas.addEventListener('pointerup', removePointer);
       canvas.addEventListener('pointercancel', removePointer);
       canvas.addEventListener('contextmenu', event => event.preventDefault());
       document.getElementById('reset').addEventListener('click', () => {
-        fingers.clear(); Object.assign(worm, { front: 0, rear: 270, speed: 0, progress: 0, moved: false }); camera = 0; hint.style.opacity = '1'; stateLabel.textContent = 'front, then rear';
+        fingers.clear(); Object.assign(worm, { front: 0, rear: 300, speed: 0, progress: 0, moved: false, phase: 'front', rearMoved: false }); camera = 0; hint.style.opacity = '1'; stateLabel.textContent = 'front, then rear';
       });
 
       function archPath(tailX, headX, baseY, archWidth, archHeight) {
