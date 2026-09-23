@@ -65,7 +65,6 @@
         hint.style.opacity = '0';
       }
       function takeStep(side, now) {
-        if (fingers.size < 2) { stateLabel.textContent = 'use both thumbs'; return; }
         if (side !== worm.expected) {
           stateLabel.textContent = worm.expected === 'right' ? 'right thumb first' : 'now left thumb';
           return;
