@@ -24,10 +24,10 @@
 <body>
   <canvas id="game" aria-label="Speedwoorms touch prototype"></canvas>
   <div class="top">
-    <div><div class="brand">Speedwoorms</div><div class="sub" id="state">find a shared rhythm</div></div>
+    <div><div class="brand">Speedwoorms</div><div class="sub" id="state">left, then right</div></div>
     <div><div class="distance"><span id="distance">0</span> m</div><div class="meter">opponent in outline</div></div>
   </div>
-  <div class="hint" id="hint">Move <strong>both thumbs left ↔ right</strong> in the same rhythm. Faster and tighter = faster worm.</div>
+  <div class="hint" id="hint"><strong>Left thumb:</strong> stroke left. <strong>Right thumb:</strong> stroke left after it. Return right to reload each stroke.</div>
   <button id="reset" aria-label="Restart">↻</button>
   <script>
     (() => {
@@ -39,7 +39,7 @@
       let w = 0, h = 0, dpr = 1, last = performance.now();
       const fingers = new Map();
       // fold = 0 is the long, flat resting state. fold = 1 is the short, arched resting state.
-      const worm = { fold: 1, targetFold: 1, scroll: 0, moved: false, lastBeat: 0 };
+      const worm = { fold: 1, targetFold: 1, scroll: 0, moved: false, lastStep: 0, expected: 'left', response: 14 };
 
       function lockLandscape() {
         const tg = window.Telegram?.WebApp;
@@ -60,36 +60,36 @@
         event.preventDefault(); lockLandscape();
         const side = event.clientX < w / 2 ? 'left' : 'right';
         for (const finger of fingers.values()) if (finger.side === side) return;
-        fingers.set(event.pointerId, { side, x: event.clientX, direction: 0, travel: 0, lastBeat: 0 });
+        fingers.set(event.pointerId, { side, x: event.clientX, leftTravel: 0, armed: true });
         canvas.setPointerCapture?.(event.pointerId);
         hint.style.opacity = '0';
       }
-      function registerBeat(finger, now) {
-        finger.lastBeat = now;
-        const other = [...fingers.values()].find(item => item !== finger);
-        if (!other || !other.lastBeat || Math.abs(other.lastBeat - now) > 170) {
-          stateLabel.textContent = 'bring both thumbs together';
+      function takeStep(side, now) {
+        if (fingers.size < 2) { stateLabel.textContent = 'use both thumbs'; return; }
+        if (side !== worm.expected) {
+          stateLabel.textContent = worm.expected === 'left' ? 'left thumb first' : 'now right thumb';
           return;
         }
-        const interval = worm.lastBeat ? now - worm.lastBeat : 460;
-        worm.lastBeat = now;
-        const cadence = Math.max(.65, Math.min(2.4, 420 / interval));
-        worm.targetFold = worm.targetFold > .5 ? 0 : 1;
+        const interval = worm.lastStep ? now - worm.lastStep : 440;
+        worm.lastStep = now;
+        const cadence = Math.max(.65, Math.min(2.5, 440 / interval));
+        worm.response = 11 + cadence * 7;
+        worm.targetFold = side === 'left' ? 0 : 1;
+        worm.expected = side === 'left' ? 'right' : 'left';
         worm.scroll += 14 * cadence;
         worm.moved = true;
-        stateLabel.textContent = cadence > 1.5 ? 'locked in — fast' : 'good rhythm';
+        stateLabel.textContent = cadence > 1.6 ? 'fast crawl' : side === 'left' ? 'front forward — right follows' : 'rear forward — left again';
       }
       function movePointer(event) {
         const finger = fingers.get(event.pointerId); if (!finger) return;
         const dx = event.clientX - finger.x; finger.x = event.clientX;
-        if (Math.abs(dx) < 1) return;
-        const direction = Math.sign(dx);
-        if (finger.direction && direction !== finger.direction && finger.travel > 14) {
-          registerBeat(finger, performance.now());
-          finger.travel = 0;
+        if (dx > 0) { finger.leftTravel = 0; finger.armed = true; return; }
+        if (dx >= 0) return;
+        finger.leftTravel += -dx;
+        if (finger.armed && finger.leftTravel >= 24) {
+          finger.armed = false;
+          takeStep(finger.side, performance.now());
         }
-        finger.direction = direction;
-        finger.travel += Math.abs(dx);
       }
       function removePointer(event) { fingers.delete(event.pointerId); }
       canvas.addEventListener('pointerdown', addPointer);
@@ -98,8 +98,9 @@
       canvas.addEventListener('pointercancel', removePointer);
       canvas.addEventListener('contextmenu', event => event.preventDefault());
       document.getElementById('reset').addEventListener('click', () => {
-        fingers.clear(); Object.assign(worm, { fold: 1, targetFold: 1, scroll: 0, moved: false, lastBeat: 0 });
-        hint.style.opacity = '1'; stateLabel.textContent = 'find a shared rhythm';
+        fingers.clear();
+        Object.assign(worm, { fold: 1, targetFold: 1, scroll: 0, moved: false, lastStep: 0, expected: 'left', response: 14 });
+        hint.style.opacity = '1'; stateLabel.textContent = 'left, then right';
       });
 
       // Central arch has fixed arclength. Its chord shortens while its height grows.
@@ -142,7 +143,7 @@
         ctx.restore();
       }
       function update(dt) {
-        worm.fold += (worm.targetFold - worm.fold) * Math.min(1, dt * 11);
+        worm.fold += (worm.targetFold - worm.fold) * Math.min(1, dt * worm.response);
         distanceLabel.textContent = Math.floor(worm.scroll / 12);
       }
       function draw() {
@@ -168,7 +169,7 @@
         }
         if (!worm.moved) {
           ctx.fillStyle = '#343034'; ctx.font = '10px Arial'; ctx.textAlign = 'center';
-          ctx.fillText('BOTH THUMBS  ←  →', center, baseY - 42);
+          ctx.fillText('LEFT  ←     THEN     RIGHT  ←', center, baseY - 42);
         }
       }
       function loop(now) {
