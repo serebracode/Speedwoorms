@@ -40,6 +40,14 @@
     .waiting-copy { margin: 22px 0 30px; color: #8b8185; font-size: 13px; line-height: 1.45; }
     .countdown { position: fixed; z-index: 7; inset: 0; display: none; place-items: center; background: #050505; color: #ff9fa8; font: 800 100px/1 Arial, sans-serif; letter-spacing: -.08em; }
     .countdown.show { display: grid; }
+    .results { position: fixed; z-index: 6; inset: 0; display: none; place-items: center; padding: 26px; background: rgba(5,5,5,.9); color: #f3eef0; }
+    .results.show { display: grid; }
+    .results h1 { margin: 10px 0 28px; color: #ff9fa8; font-size: 47px; line-height: .9; letter-spacing: -.07em; }
+    .score-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+    .score-table th { padding: 0 0 9px; color: #777; border-bottom: 1px solid #433b3e; font-size: 10px; letter-spacing: .13em; text-align: left; }
+    .score-table td { padding: 15px 0; border-bottom: 1px solid #302a2d; font-size: 17px; }
+    .score-table td:first-child { width: 58px; color: #ff9fa8; font-weight: 800; }
+    .score-table td:last-child { text-align: right; }
   </style>
 </head>
 <body>
@@ -75,6 +83,17 @@
     </section>
   </main>
   <div class="countdown" id="countdown">3</div>
+  <section class="results" id="results">
+    <div class="panel">
+      <div class="eyebrow">Finish</div>
+      <h1>SCORE</h1>
+      <table class="score-table">
+        <thead><tr><th>PLACE</th><th>NAME</th><th></th></tr></thead>
+        <tbody id="scoreRows"></tbody>
+      </table>
+      <button class="ready" id="raceAgain">RACE AGAIN</button>
+    </div>
+  </section>
   <div class="top hidden" id="gameHud">
     <div><div class="brand">Speedwoorms</div><div class="sub" id="state">right, then left</div></div>
     <div class="distance" aria-label="Race distance"><span id="distance"></span></div>
@@ -95,11 +114,14 @@
       const gameHud = document.getElementById('gameHud');
       const resetButton = document.getElementById('reset');
       const playerNameInput = document.getElementById('playerName');
+      const results = document.getElementById('results');
+      const scoreRows = document.getElementById('scoreRows');
+      let playerName = 'WORM_01';
       let w = 0, h = 0, dpr = 1, last = performance.now();
       let backgroundDots = [];
       const fingers = new Map();
       // fold = 0 is the long, flat resting state. fold = 1 is the short, arched resting state.
-      const worm = { fold: 1, targetFold: 1, scroll: 0, moved: false, lastStep: 0, expected: 'right', response: 14, color: '#ff9fa8' };
+      const worm = { fold: 1, targetFold: 1, scroll: 0, moved: false, lastStep: 0, expected: 'right', response: 14, color: '#ff9fa8', finished: false };
 
       // Portrait is the native layout. No orientation lock or device rotation is requested.
       function resize() {
@@ -127,6 +149,7 @@
         hint.style.opacity = '0';
       }
       function takeStep(side, now) {
+        if (worm.finished) return;
         if (fingers.size > 1) { stateLabel.textContent = 'release before the next stroke'; return; }
         if (side !== worm.expected) {
           stateLabel.textContent = worm.expected === 'right' ? 'right thumb first' : 'now left thumb';
@@ -161,7 +184,7 @@
       canvas.addEventListener('contextmenu', event => event.preventDefault());
       resetButton.addEventListener('click', () => {
         fingers.clear();
-        Object.assign(worm, { fold: 1, targetFold: 1, scroll: 0, moved: false, lastStep: 0, expected: 'right', response: 14 });
+        Object.assign(worm, { fold: 1, targetFold: 1, scroll: 0, moved: false, lastStep: 0, expected: 'right', response: 14, finished: false });
         hint.style.opacity = '1'; stateLabel.textContent = 'right, then left';
       });
 
@@ -214,8 +237,8 @@
         });
       });
       document.getElementById('readyButton').addEventListener('click', () => {
-        const name = playerNameInput.value.trim() || 'WORM_01';
-        document.getElementById('playerNameLabel').textContent = name.toUpperCase();
+        playerName = (playerNameInput.value.trim() || 'WORM_01').toUpperCase();
+        document.getElementById('playerNameLabel').textContent = playerName;
         document.getElementById('playerDot').style.setProperty('--player-colour', worm.color);
         profileScreen.classList.add('hidden');
         waitingScreen.classList.remove('hidden');
@@ -231,15 +254,37 @@
           clearInterval(timer);
           countdown.classList.remove('show');
           lobby.style.display = 'none';
+          worm.scroll = 0;
+          worm.finished = false;
           gameHud.classList.remove('hidden');
           hint.classList.remove('hidden');
           resetButton.classList.remove('hidden');
         }, 800);
       });
 
+      function finishRace() {
+        worm.finished = true;
+        scoreRows.innerHTML = '<tr><td>1</td><td>' + playerName + '</td><td>—</td></tr>';
+        setTimeout(() => {
+          gameHud.classList.add('hidden');
+          hint.classList.add('hidden');
+          resetButton.classList.add('hidden');
+          results.classList.add('show');
+        }, 280);
+      }
+      document.getElementById('raceAgain').addEventListener('click', () => {
+        results.classList.remove('show');
+        lobby.style.display = 'grid';
+        waitingScreen.classList.add('hidden');
+        profileScreen.classList.remove('hidden');
+        fingers.clear();
+        Object.assign(worm, { fold: 1, targetFold: 1, scroll: 0, moved: false, lastStep: 0, expected: 'right', response: 14, finished: false });
+        distanceLabel.style.width = '0%';
+      });
       function update(dt) {
         worm.fold += (worm.targetFold - worm.fold) * Math.min(1, dt * worm.response);
         distanceLabel.style.width = Math.min(100, (worm.scroll / Math.max(1, w)) * 100) + '%';
+        if (!worm.finished && worm.scroll >= w) finishRace();
       }
       function draw() {
         ctx.clearRect(0, 0, w, h);
