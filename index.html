@@ -78,8 +78,7 @@
           <span class="ready-state">READY</span>
         </div>
       </div>
-      <p class="waiting-copy">This local prototype starts a test race now. In the shared version, the countdown begins when every player in the room is ready.</p>
-      <button class="ready" id="startPreview">START TEST RACE</button>
+      <p class="waiting-copy">Waiting for the other worms. The room server starts the shared countdown when every joined player is ready.</p>
     </section>
   </main>
   <div class="countdown" id="countdown">3</div>
@@ -243,28 +242,12 @@
         profileScreen.classList.add('hidden');
         waitingScreen.classList.remove('hidden');
       });
-      document.getElementById('startPreview').addEventListener('click', () => {
-        let number = 3;
-        countdown.textContent = number;
-        countdown.classList.add('show');
-        const timer = setInterval(() => {
-          number--;
-          if (number > 0) { countdown.textContent = number; return; }
-          if (number === 0) { countdown.textContent = 'GO'; return; }
-          clearInterval(timer);
-          countdown.classList.remove('show');
-          lobby.style.display = 'none';
-          worm.scroll = 0;
-          worm.finished = false;
-          gameHud.classList.remove('hidden');
-          hint.classList.remove('hidden');
-          resetButton.classList.remove('hidden');
-        }, 800);
-      });
 
-      function finishRace() {
+      function finishRace(standings) {
         worm.finished = true;
-        scoreRows.innerHTML = '<tr><td>1</td><td>' + playerName + '</td><td>—</td></tr>';
+        scoreRows.innerHTML = standings.map((player, index) =>
+          '<tr><td>' + (index + 1) + '</td><td>' + player.name + '</td><td>—</td></tr>'
+        ).join('');
         setTimeout(() => {
           gameHud.classList.add('hidden');
           hint.classList.add('hidden');
@@ -284,7 +267,7 @@
       function update(dt) {
         worm.fold += (worm.targetFold - worm.fold) * Math.min(1, dt * worm.response);
         distanceLabel.style.width = Math.min(100, (worm.scroll / Math.max(1, w)) * 100) + '%';
-        if (!worm.finished && worm.scroll >= w) finishRace();
+        
       }
       function draw() {
         ctx.clearRect(0, 0, w, h);
