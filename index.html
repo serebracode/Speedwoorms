@@ -19,16 +19,67 @@
     .hint { position: fixed; z-index: 2; left: 50%; bottom: max(17px, env(safe-area-inset-bottom)); width: min(590px, calc(100vw - 40px)); transform: translateX(-50%); color: #858185; font-size: 11px; line-height: 1.35; letter-spacing: .04em; text-align: center; transition: opacity .35s; pointer-events: none; }
     .hint strong { color: #ffb4b9; font-weight: 700; }
     button { position: fixed; z-index: 3; right: 15px; bottom: max(13px, env(safe-area-inset-bottom)); width: 35px; height: 35px; border: 1px solid #302b2e; border-radius: 50%; background: #0d0c0d; color: #aaa; font-size: 17px; line-height: 1; }
+    .top.hidden, .hint.hidden, #reset.hidden { display: none; }
+    .lobby { position: fixed; z-index: 5; inset: 0; display: grid; place-items: center; padding: 26px; background: #050505; color: #f3eef0; }
+    .panel { width: min(390px, 100%); }
+    .eyebrow { color: #ff9fa8; font-size: 11px; font-weight: 800; letter-spacing: .17em; text-transform: uppercase; }
+    .lobby h1 { margin: 12px 0 30px; font-size: 33px; line-height: .9; letter-spacing: -.06em; }
+    .field-label, .room-label { display: block; margin: 0 0 9px; color: #777; font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+    .name-input { width: 100%; border: 0; border-bottom: 1px solid #51464a; border-radius: 0; outline: none; padding: 8px 0 11px; background: transparent; color: #f5f0f2; font: 600 22px/1 Arial, sans-serif; letter-spacing: -.03em; }
+    .colour-row { display: flex; gap: 11px; margin: 13px 0 34px; }
+    .colour { position: static; width: 28px; height: 28px; margin: 0; padding: 0; border: 2px solid transparent; border-radius: 50%; background: var(--colour); box-shadow: none; }
+    .colour.selected { border-color: #fff; box-shadow: 0 0 0 3px #050505, 0 0 0 4px #6d6266; }
+    .ready { position: static; width: 100%; height: 52px; margin: 0; border: 0; border-radius: 4px; background: #ff9fa8; color: #160c0f; font: 800 12px/1 Arial, sans-serif; letter-spacing: .14em; }
+    .screen.hidden { display: none; }
+    .room { border-top: 1px solid #322c2f; border-bottom: 1px solid #322c2f; padding: 17px 0; }
+    .player-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 15px; }
+    .player-id { display: flex; align-items: center; gap: 10px; }
+    .player-dot { width: 11px; height: 11px; border-radius: 50%; background: var(--player-colour); }
+    .ready-state { color: #ff9fa8; font-size: 10px; font-weight: 800; letter-spacing: .12em; }
+    .waiting-copy { margin: 22px 0 30px; color: #8b8185; font-size: 13px; line-height: 1.45; }
+    .countdown { position: fixed; z-index: 7; inset: 0; display: none; place-items: center; background: #050505; color: #ff9fa8; font: 800 100px/1 Arial, sans-serif; letter-spacing: -.08em; }
+    .countdown.show { display: grid; }
   </style>
 </head>
 <body>
   <canvas id="game" aria-label="Speedwoorms touch prototype"></canvas>
-  <div class="top">
+  <main class="lobby" id="lobby">
+    <section class="panel screen" id="profileScreen">
+      <div class="eyebrow">Speedwoorms</div>
+      <h1>Choose<br>your worm.</h1>
+      <label class="field-label" for="playerName">Name</label>
+      <input class="name-input" id="playerName" maxlength="14" value="WORM_01" autocomplete="off">
+      <span class="field-label" style="margin-top:30px">Colour</span>
+      <div class="colour-row" id="colourRow">
+        <button class="colour selected" data-colour="#ff9fa8" style="--colour:#ff9fa8" aria-label="Pink"></button>
+        <button class="colour" data-colour="#ff7168" style="--colour:#ff7168" aria-label="Coral"></button>
+        <button class="colour" data-colour="#f4c14e" style="--colour:#f4c14e" aria-label="Yellow"></button>
+        <button class="colour" data-colour="#91d983" style="--colour:#91d983" aria-label="Green"></button>
+        <button class="colour" data-colour="#65cbe8" style="--colour:#65cbe8" aria-label="Blue"></button>
+        <button class="colour" data-colour="#b595ff" style="--colour:#b595ff" aria-label="Violet"></button>
+      </div>
+      <button class="ready" id="readyButton">READY</button>
+    </section>
+    <section class="panel screen hidden" id="waitingScreen">
+      <div class="eyebrow">Room 01</div>
+      <h1>Waiting<br>for worms.</h1>
+      <div class="room">
+        <div class="player-row">
+          <div class="player-id"><span class="player-dot" id="playerDot"></span><span id="playerNameLabel">WORM_01</span></div>
+          <span class="ready-state">READY</span>
+        </div>
+      </div>
+      <p class="waiting-copy">This local prototype starts a test race now. In the shared version, the countdown begins when every player in the room is ready.</p>
+      <button class="ready" id="startPreview">START TEST RACE</button>
+    </section>
+  </main>
+  <div class="countdown" id="countdown">3</div>
+  <div class="top hidden" id="gameHud">
     <div><div class="brand">Speedwoorms</div><div class="sub" id="state">right, then left</div></div>
     <div><div class="distance"><span id="distance">0</span> m</div><div class="meter">opponent in outline</div></div>
   </div>
-  <div class="hint" id="hint"><strong>Right thumb:</strong> stroke right, release. <strong>Left thumb:</strong> stroke right, release. Alternate.</div>
-  <button id="reset" aria-label="Restart">↻</button>
+  <div class="hint hidden" id="hint"><strong>Right thumb:</strong> stroke right, release. <strong>Left thumb:</strong> stroke right, release. Alternate.</div>
+  <button id="reset" class="hidden" aria-label="Restart">↻</button>
   <script>
     (() => {
       const canvas = document.getElementById('game');
@@ -36,11 +87,18 @@
       const stateLabel = document.getElementById('state');
       const distanceLabel = document.getElementById('distance');
       const hint = document.getElementById('hint');
+      const lobby = document.getElementById('lobby');
+      const profileScreen = document.getElementById('profileScreen');
+      const waitingScreen = document.getElementById('waitingScreen');
+      const countdown = document.getElementById('countdown');
+      const gameHud = document.getElementById('gameHud');
+      const resetButton = document.getElementById('reset');
+      const playerNameInput = document.getElementById('playerName');
       let w = 0, h = 0, dpr = 1, last = performance.now();
       let backgroundDots = [];
       const fingers = new Map();
       // fold = 0 is the long, flat resting state. fold = 1 is the short, arched resting state.
-      const worm = { fold: 1, targetFold: 1, scroll: 0, moved: false, lastStep: 0, expected: 'right', response: 14 };
+      const worm = { fold: 1, targetFold: 1, scroll: 0, moved: false, lastStep: 0, expected: 'right', response: 14, color: '#ff9fa8' };
 
       // Portrait is the native layout. No orientation lock or device rotation is requested.
       function resize() {
@@ -100,7 +158,7 @@
       canvas.addEventListener('pointerup', removePointer);
       canvas.addEventListener('pointercancel', removePointer);
       canvas.addEventListener('contextmenu', event => event.preventDefault());
-      document.getElementById('reset').addEventListener('click', () => {
+      resetButton.addEventListener('click', () => {
         fingers.clear();
         Object.assign(worm, { fold: 1, targetFold: 1, scroll: 0, moved: false, lastStep: 0, expected: 'right', response: 14 });
         hint.style.opacity = '1'; stateLabel.textContent = 'right, then left';
@@ -147,6 +205,37 @@
         wormPath(center, baseY, fold, bodyLength); ctx.stroke();
         ctx.restore();
       }
+      document.querySelectorAll('.colour').forEach(button => {
+        button.addEventListener('click', () => {
+          document.querySelectorAll('.colour').forEach(item => item.classList.remove('selected'));
+          button.classList.add('selected');
+          worm.color = button.dataset.colour;
+        });
+      });
+      document.getElementById('readyButton').addEventListener('click', () => {
+        const name = playerNameInput.value.trim() || 'WORM_01';
+        document.getElementById('playerNameLabel').textContent = name.toUpperCase();
+        document.getElementById('playerDot').style.setProperty('--player-colour', worm.color);
+        profileScreen.classList.add('hidden');
+        waitingScreen.classList.remove('hidden');
+      });
+      document.getElementById('startPreview').addEventListener('click', () => {
+        let number = 3;
+        countdown.textContent = number;
+        countdown.classList.add('show');
+        const timer = setInterval(() => {
+          number--;
+          if (number > 0) { countdown.textContent = number; return; }
+          if (number === 0) { countdown.textContent = 'GO'; return; }
+          clearInterval(timer);
+          countdown.classList.remove('show');
+          lobby.style.display = 'none';
+          gameHud.classList.remove('hidden');
+          hint.classList.remove('hidden');
+          resetButton.classList.remove('hidden');
+        }, 800);
+      });
+
       function update(dt) {
         worm.fold += (worm.targetFold - worm.fold) * Math.min(1, dt * worm.response);
         distanceLabel.textContent = Math.floor(worm.scroll / 12);
@@ -170,7 +259,7 @@
         // The rival is deliberately behind the player and is a contour only.
         drawOutline(center + 14, baseY, .52, bodyLength, width);
         // The player's body has a fixed length and is completely solid.
-        ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#ff9fa8'; ctx.lineWidth = width;
+        ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = worm.color; ctx.lineWidth = width;
         wormPath(center, baseY, worm.fold, bodyLength); ctx.stroke(); ctx.restore();
 
         if (!worm.moved) {
