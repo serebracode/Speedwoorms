@@ -125,15 +125,14 @@
       const DESIGN_W = 852;
       const DESIGN_H = 393;
       const STEP_ADVANCE = 253;
-      const BODY_SAMPLES = 56;
       const TEST_MODE = true;
       const wormFrames = [
         [[104,314],[209,314],[209,167],[280,167],[280,314],[512,314]],
         [[104,314],[219,314],[219,217],[295,265.5],[371,314],[572,314]],
         [[104,314],[219,314],[219,277],[304,295.5],[389,314],[622,314]],
         [[104,314],[219,314],[219,314],[621,314],[621,314],[741,314]],
-        [[224,314],[483,314],[552,295.5],[621,277],[621,314],[742,314]],
-        [[210,314],[483,314],[552,265.5],[621,217],[621,314],[738,314]],
+        [[224,314],[483,314],[552,295.5],[586.5,304.75],[621,314],[742,314]],
+        [[210,314],[483,314],[552,265.5],[586.5,289.75],[621,314],[738,314]],
         [[357,314],[587,314],[587,167],[658,167],[658,314],[765,314]]
       ];
       const worm = { phase: 0, targetPhase: 0, cycle: 0, scroll: 0, moved: false, lastStep: 0, expected: 'right', response: 14, color: '#ffb7b7', finished: false };
@@ -213,29 +212,12 @@
         hint.style.opacity = '1'; stateLabel.textContent = 'right, then left';
       });
 
-      function lerp(a, b, t) { return a + (b - a) * t; }
-      function resampleFrame(frame, count = BODY_SAMPLES) {
-        const lengths = [0];
-        for (let i = 1; i < frame.length; i++) {
-          lengths.push(lengths[i - 1] + Math.hypot(frame[i][0] - frame[i - 1][0], frame[i][1] - frame[i - 1][1]));
-        }
-        const total = lengths[lengths.length - 1];
-        return Array.from({ length: count }, (_, sample) => {
-          const distance = total * sample / (count - 1);
-          let segment = 1;
-          while (segment < lengths.length - 1 && lengths[segment] < distance) segment++;
-          const span = lengths[segment] - lengths[segment - 1];
-          const t = span ? (distance - lengths[segment - 1]) / span : 0;
-          return [lerp(frame[segment - 1][0], frame[segment][0], t), lerp(frame[segment - 1][1], frame[segment][1], t)];
-        });
-      }
-      const sampledWormFrames = wormFrames.map(frame => resampleFrame(frame));
-      function wrappedSample(frameIndex, pointIndex) {
-        const frameCount = sampledWormFrames.length;
+      function wrappedAnchor(frameIndex, anchorIndex) {
+        const frameCount = wormFrames.length;
         const cycle = Math.floor(frameIndex / frameCount);
         const normalizedIndex = ((frameIndex % frameCount) + frameCount) % frameCount;
         const advance = cycle * STEP_ADVANCE;
-        const source = sampledWormFrames[normalizedIndex][pointIndex];
+        const source = wormFrames[normalizedIndex][anchorIndex];
         return [source[0] + advance, source[1]];
       }
       function catmull(p0, p1, p2, p3, t) {
@@ -245,11 +227,11 @@
       function currentWormFrame(phase) {
         const index = Math.floor(phase);
         const t = Math.max(0, Math.min(1, phase - index));
-        return sampledWormFrames[0].map((_, pointIndex) => {
-          const p0 = wrappedSample(index - 1 + worm.cycle * 7, pointIndex);
-          const p1 = wrappedSample(index + worm.cycle * 7, pointIndex);
-          const p2 = wrappedSample(index + 1 + worm.cycle * 7, pointIndex);
-          const p3 = wrappedSample(index + 2 + worm.cycle * 7, pointIndex);
+        return wormFrames[0].map((_, anchorIndex) => {
+          const p0 = wrappedAnchor(index - 1 + worm.cycle * 7, anchorIndex);
+          const p1 = wrappedAnchor(index + worm.cycle * 7, anchorIndex);
+          const p2 = wrappedAnchor(index + 1 + worm.cycle * 7, anchorIndex);
+          const p3 = wrappedAnchor(index + 2 + worm.cycle * 7, anchorIndex);
           return [catmull(p0[0], p1[0], p2[0], p3[0], t), catmull(p0[1], p1[1], p2[1], p3[1], t)];
         });
       }
@@ -283,7 +265,9 @@
         ctx.lineWidth = lineWidth;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
-        roundedPath(points, 36);
+        // One full body-width radius, clamped by neighbouring anchor spacing,
+        // rounds the fold without letting adjacent corner arcs cross.
+        roundedPath(points, lineWidth);
         ctx.stroke();
         ctx.restore();
       }
