@@ -6,6 +6,8 @@ The visual language is deliberately reduced to a black field, sparse white backg
 
 ## Current client flow
 
+The published client currently starts directly in **test mode**. Lobby and room UI remain in the source but are bypassed so worm geometry, animation and touch control can be tested immediately on a phone.
+
 1. The player enters a name and selects a worm colour.
 2. The player confirms **READY**.
 3. The client enters a waiting-room screen.
