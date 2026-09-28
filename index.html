@@ -152,11 +152,10 @@
         dpr = Math.min(window.devicePixelRatio || 1, 2); w = window.innerWidth; h = window.innerHeight;
         canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        // Scatter across the full horizontal viewport, keeping every point
-        // within its upper 70% (above the worm's baseline).
+        // Scatter equal white points sparsely across the whole landscape view.
         backgroundDots = Array.from({ length: 18 }, (_, order) => {
           const x = Math.random() * DESIGN_W;
-          return { x, anchorX: x, y: Math.random() * DESIGN_H * .7, radius: 1.2, order, segments: [], current: null };
+          return { x, anchorX: x, y: Math.random() * DESIGN_H, radius: 1.2, order, segments: [], current: null };
         }).sort((a, b) => b.x - a.x).map((dot, order) => ({ ...dot, order }));
       }
       window.addEventListener('resize', resize);
