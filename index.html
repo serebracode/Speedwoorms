@@ -124,6 +124,7 @@
       const DESIGN_W = 852;
       const DESIGN_H = 393;
       const STEP_ADVANCE = 253;
+      const TEST_MODE = true;
       const wormFrames = [
         { width: 147.08, height: 408, left: 104, top: 314.08, rotation: -90 },
         { width: 97.08, height: 468, left: 104, top: 314.08, rotation: -90 },
@@ -239,6 +240,19 @@
         waitingScreen.classList.remove('hidden');
       });
 
+      function startTestMode() {
+        lobby.style.display = 'none';
+        results.classList.remove('show');
+        countdown.classList.remove('show');
+        gameHud.classList.remove('hidden');
+        hint.classList.remove('hidden');
+        resetButton.classList.remove('hidden');
+        hint.style.opacity = '1';
+        stateLabel.textContent = 'right, then left';
+      }
+
+      if (TEST_MODE) startTestMode();
+
       function finishRace(standings) {
         worm.finished = true;
         scoreRows.innerHTML = standings.map((player, index) =>
@@ -253,12 +267,16 @@
       }
       document.getElementById('raceAgain').addEventListener('click', () => {
         results.classList.remove('show');
-        lobby.style.display = 'grid';
-        waitingScreen.classList.add('hidden');
-        profileScreen.classList.remove('hidden');
         fingers.clear();
         Object.assign(worm, { phase: 0, targetPhase: 0, cycleOffset: 0, scroll: 0, moved: false, lastStep: 0, expected: 'right', response: 14, finished: false });
         distanceLabel.style.width = '0%';
+        if (TEST_MODE) {
+          startTestMode();
+        } else {
+          lobby.style.display = 'grid';
+          waitingScreen.classList.add('hidden');
+          profileScreen.classList.remove('hidden');
+        }
       });
       function update(dt) {
         worm.phase += (worm.targetPhase - worm.phase) * Math.min(1, dt * worm.response);
