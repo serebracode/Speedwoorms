@@ -234,7 +234,7 @@
         if (!worm.wrapping) return worm.cycle * STEP_ADVANCE;
         // Hold the last phase briefly, then let the viewport catch up while
         // the body finishes morphing into the next cycle's first phase.
-        const raw = Math.max(0, Math.min(1, (worm.wrap - .35) / .65));
+        const raw = Math.max(0, Math.min(1, (worm.wrap - .22) / .78));
         const eased = raw * raw * (3 - 2 * raw);
         return (worm.cycle + eased) * STEP_ADVANCE;
       }
@@ -318,7 +318,7 @@
       });
       function update(dt) {
         if (worm.wrapping) {
-          const wrapDuration = Math.max(.16, Math.min(.34, 6 / worm.response));
+          const wrapDuration = Math.max(.38, Math.min(.62, 11 / worm.response));
           worm.wrap = Math.min(1, worm.wrap + dt / wrapDuration);
           if (worm.wrap >= 1) {
             worm.cycle += 1;
