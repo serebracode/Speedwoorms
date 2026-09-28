@@ -261,20 +261,7 @@
         return (worm.cycle + eased) * STEP_ADVANCE;
       }
       function roundedPath(points, radius) {
-        const clean = [];
-        for (const point of points) {
-          if (clean.length && Math.hypot(point[0] - clean[clean.length - 1][0], point[1] - clean[clean.length - 1][1]) <= .01) continue;
-          while (clean.length >= 2) {
-            const a = clean[clean.length - 2], b = clean[clean.length - 1];
-            const abx = b[0] - a[0], aby = b[1] - a[1];
-            const bcx = point[0] - b[0], bcy = point[1] - b[1];
-            const abLength = Math.hypot(abx, aby), bcLength = Math.hypot(bcx, bcy);
-            const cross = Math.abs(abx * bcy - aby * bcx);
-            if (abx * bcx + aby * bcy <= 0 || cross > abLength * bcLength * .001) break;
-            clean.pop();
-          }
-          clean.push(point);
-        }
+        const clean = points.filter((point, index) => !index || Math.hypot(point[0] - points[index - 1][0], point[1] - points[index - 1][1]) > .01);
         ctx.beginPath();
         ctx.moveTo(clean[0][0], clean[0][1]);
         for (let i = 1; i < clean.length - 1; i++) {
@@ -290,13 +277,13 @@
         const last = clean[clean.length - 1];
         ctx.lineTo(last[0], last[1]);
       }
-      function drawWormFrame(points, colour, lineWidth = WORM_WIDTH) {
+      function drawWormFrame(points, colour, lineWidth = 63.14) {
         ctx.save();
         ctx.strokeStyle = colour;
         ctx.lineWidth = lineWidth;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
-        roundedPath(points, lineWidth);
+        roundedPath(points, 36);
         ctx.stroke();
         ctx.restore();
       }
@@ -341,7 +328,7 @@
       document.getElementById('raceAgain').addEventListener('click', () => {
         results.classList.remove('show');
         fingers.clear();
-        Object.assign(worm, { phase: 0, targetPhase: 0, phaseVelocity: 0, cycle: 0, scroll: 0, moved: false, lastStep: 0, expected: 'right', response: 14, finished: false });
+        Object.assign(worm, { phase: 0, targetPhase: 0, cycle: 0, scroll: 0, moved: false, lastStep: 0, expected: 'right', response: 14, finished: false });
         distanceLabel.style.width = '0%';
         if (TEST_MODE) {
           startTestMode();
