@@ -151,13 +151,11 @@
         dpr = Math.min(window.devicePixelRatio || 1, 2); w = window.innerWidth; h = window.innerHeight;
         canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        const count = Math.max(18, Math.min(34, Math.round((w * h) / 38000)));
-        backgroundDots = Array.from({ length: count }, () => ({
-          x: Math.random() * w,
-          y: Math.random() * h,
-          radius: 1.3 + Math.random() * 1.1,
-          drift: .12 + Math.random() * .32,
-          alpha: .58 + Math.random() * .42
+        backgroundDots = Array.from({ length: 24 }, () => ({
+          x: Math.random() * DESIGN_W,
+          y: Math.random() * DESIGN_H,
+          radius: 1.05 + Math.random() * .55,
+          alpha: .42 + Math.random() * .34
         }));
       }
       window.addEventListener('resize', resize);
@@ -214,11 +212,9 @@
 
       function wrappedAnchor(frameIndex, anchorIndex) {
         const frameCount = wormFrames.length;
-        const cycle = Math.floor(frameIndex / frameCount);
         const normalizedIndex = ((frameIndex % frameCount) + frameCount) % frameCount;
-        const advance = cycle * STEP_ADVANCE;
         const source = wormFrames[normalizedIndex][anchorIndex];
-        return [source[0] + advance, source[1]];
+        return [source[0], source[1]];
       }
       function catmull(p0, p1, p2, p3, t) {
         const t2 = t * t, t3 = t2 * t;
@@ -242,12 +238,21 @@
           return [catmull(p0[0], p1[0], p2[0], p3[0], t), catmull(p0[1], p1[1], p2[1], p3[1], t)];
         });
       }
-      function cameraOffset(phase) {
-        // Let the rear (left) end visibly start first, then let the camera
-        // follow with a small, rendered delay through the 7 → 1 movement.
-        const raw = Math.max(0, Math.min(1, (phase - 3.4) / 3.6));
-        const eased = raw * raw * (3 - 2 * raw);
-        return (worm.cycle + eased) * STEP_ADVANCE;
+      function backgroundOffset(phase) {
+        // Scroll the field in step with the full seven-part worm cycle.
+        return ((worm.cycle + phase / 7) * STEP_ADVANCE) % DESIGN_W;
+      }
+      function drawBackground() {
+        const offset = backgroundOffset(worm.phase);
+        ctx.fillStyle = '#d8d4d6';
+        for (const dot of backgroundDots) {
+          const x = ((dot.x - offset) % DESIGN_W + DESIGN_W) % DESIGN_W;
+          ctx.globalAlpha = dot.alpha;
+          ctx.beginPath();
+          ctx.arc(x, dot.y, dot.radius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
       }
       function roundedPath(points, radius) {
         const clean = points.filter((point, index) => !index || Math.hypot(point[0] - points[index - 1][0], point[1] - points[index - 1][1]) > .01);
@@ -351,8 +356,12 @@
         ctx.translate(sceneX + DESIGN_H * scale, sceneY);
         ctx.rotate(Math.PI / 2);
         ctx.scale(scale, scale);
-        ctx.translate(-cameraOffset(worm.phase), 0);
-        drawWormFrame(currentWormFrame(worm.phase), worm.color);
+        drawBackground();
+        const points = currentWormFrame(worm.phase);
+        const bodyCenter = points.reduce((sum, point) => sum + point[0], 0) / points.length;
+        const leftOfCenter = DESIGN_W * .46;
+        const placement = leftOfCenter - bodyCenter;
+        drawWormFrame(points.map(([x, y]) => [x + placement, y]), worm.color);
         ctx.restore();
       }
       function loop(now) {
