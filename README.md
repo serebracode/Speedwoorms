@@ -44,7 +44,7 @@ A leftward motion only reloads the same thumb for its next rightward working str
 
 The seven supplied phases also define the worm's movement across the viewport. Completing the cycle advances the body by 253 reference pixels.
 
-The final fold, the `7 → 1` body morph and the viewport shift are one continuous movement. The camera begins following during the last supplied fold and completes the same 253 px world advance as the body becomes the next cycle's first phase. There is no separate camera catch-up after the worm stops; the whole movement uses the current response speed.
+The rear-end pull, the final fold, the `7 → 1` body morph and the viewport shift are one continuous movement. The left end begins pulling first; the camera follows with a small 0.18-phase delay and completes the same 253 px world advance as the body becomes the next cycle's first phase. There is no separate camera catch-up after the worm stops; the whole movement uses the current response speed.
 
 ## Geometry and visual rules
 
