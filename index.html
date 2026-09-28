@@ -232,9 +232,9 @@
         ]);
       }
       function cameraOffset(phase) {
-        // The camera starts exactly when the rear (left) end begins pulling
-        // forward, then follows that whole movement through the 7 → 1 morph.
-        const raw = Math.max(0, Math.min(1, (phase - 3) / 4));
+        // Let the rear (left) end visibly start first, then let the camera
+        // follow with a small delay through the rest of the 7 → 1 movement.
+        const raw = Math.max(0, Math.min(1, (phase - 3.18) / 3.82));
         const eased = raw * raw * (3 - 2 * raw);
         return (worm.cycle + eased) * STEP_ADVANCE;
       }
