@@ -125,7 +125,6 @@
       const DESIGN_W = 852;
       const DESIGN_H = 393;
       const STEP_ADVANCE = 253;
-      const FOLD_TRAVEL = 125;
       const BODY_SAMPLES = 56;
       const TEST_MODE = true;
       const wormFrames = [
@@ -243,26 +242,15 @@
         const t2 = t * t, t3 = t2 * t;
         return .5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3);
       }
-      function foldInfluence(position) {
-        const smooth = (a, b, x) => {
-          const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
-          return t * t * (3 - 2 * t);
-        };
-        return smooth(.29, .38, position) * (1 - smooth(.82, .91, position));
-      }
       function currentWormFrame(phase) {
         const index = Math.floor(phase);
         const t = Math.max(0, Math.min(1, phase - index));
-        const foldRaw = Math.max(0, Math.min(1, (phase - 3) / 3));
-        const foldShift = foldRaw * foldRaw * (3 - 2 * foldRaw) * FOLD_TRAVEL;
         return sampledWormFrames[0].map((_, pointIndex) => {
           const p0 = wrappedSample(index - 1 + worm.cycle * 7, pointIndex);
           const p1 = wrappedSample(index + worm.cycle * 7, pointIndex);
           const p2 = wrappedSample(index + 1 + worm.cycle * 7, pointIndex);
           const p3 = wrappedSample(index + 2 + worm.cycle * 7, pointIndex);
-          const alongBody = pointIndex / (BODY_SAMPLES - 1);
-          const shift = phase >= 3 && phase < 6 ? foldShift * foldInfluence(alongBody) : phase >= 6 ? FOLD_TRAVEL * foldInfluence(alongBody) * Math.max(0, 1 - (phase - 6)) : 0;
-          return [catmull(p0[0], p1[0], p2[0], p3[0], t) - shift, catmull(p0[1], p1[1], p2[1], p3[1], t)];
+          return [catmull(p0[0], p1[0], p2[0], p3[0], t), catmull(p0[1], p1[1], p2[1], p3[1], t)];
         });
       }
       function cameraOffset(phase) {
