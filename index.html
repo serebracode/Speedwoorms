@@ -236,8 +236,8 @@
       }
       function cameraOffset(phase) {
         // Let the rear (left) end visibly start first, then let the camera
-        // follow with a small delay through the rest of the 7 → 1 movement.
-        const raw = Math.max(0, Math.min(1, (phase - 3.18) / 3.82));
+        // follow with a small, rendered delay through the 7 → 1 movement.
+        const raw = Math.max(0, Math.min(1, (phase - 3.4) / 3.6));
         const eased = raw * raw * (3 - 2 * raw);
         return (worm.cycle + eased) * STEP_ADVANCE;
       }
@@ -320,8 +320,11 @@
         }
       });
       function update(dt) {
-        worm.phase += (worm.targetPhase - worm.phase) * Math.min(1, dt * worm.response);
-        if (worm.targetPhase === 7 && Math.abs(worm.phase - 7) < .012) {
+        const delta = worm.targetPhase - worm.phase;
+        const phaseSpeed = 5 + (worm.response - 11) * .58;
+        const phaseStep = Math.min(Math.abs(delta), dt * phaseSpeed);
+        worm.phase += Math.sign(delta) * phaseStep;
+        if (worm.targetPhase === 7 && worm.phase >= 7) {
           worm.cycle += 1;
           worm.phase = 0;
           worm.targetPhase = 0;
