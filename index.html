@@ -232,6 +232,11 @@
           const p1 = wrappedAnchor(index + worm.cycle * 7, anchorIndex);
           const p2 = wrappedAnchor(index + 1 + worm.cycle * 7, anchorIndex);
           const p3 = wrappedAnchor(index + 2 + worm.cycle * 7, anchorIndex);
+          // During the final tail pull, E-D-C-B translate together instead
+          // of acquiring different Catmull-Rom speeds from neighbouring keys.
+          if (index === 6 && anchorIndex >= 1 && anchorIndex <= 4) {
+            return [p1[0] + (p2[0] - p1[0]) * t, p1[1] + (p2[1] - p1[1]) * t];
+          }
           return [catmull(p0[0], p1[0], p2[0], p3[0], t), catmull(p0[1], p1[1], p2[1], p3[1], t)];
         });
       }
