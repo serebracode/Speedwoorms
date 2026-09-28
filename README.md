@@ -2,11 +2,11 @@
 
 A minimal mobile **network worm-racing game**.
 
-The visual language is deliberately reduced to a black field, sparse white background points and simple coloured worms. The client is published on GitHub Pages as a static Canvas app with no build step or dependencies; the actual game requires a real-time room server.
+The visual language is deliberately reduced to a black field and simple coloured worms. The client is published on GitHub Pages as a static Canvas app with no build step or dependencies; the actual game requires a real-time room server.
 
 ## Current client flow
 
-The published client currently starts directly in **test mode**. Lobby and room UI remain in the source but are bypassed so worm geometry, animation and touch control can be tested immediately on a phone. The steps below describe the retained future network flow:
+The published client currently starts directly in **test mode**. Only the black field and the worm are rendered: lobby, labels, progress, controls and background points remain disabled while movement is tuned. The steps below describe the retained future network flow:
 
 1. The player enters a name and selects a worm colour.
 2. The player confirms **READY**.
@@ -47,10 +47,10 @@ The seven supplied phases also define the worm's movement across the viewport. C
 ## Geometry and visual rules
 
 - Portrait mobile viewport with an internally rotated `852 × 393` scene.
-- The player worm is one solid `63.14 px` line with round ends and joins. Its centre-line is traced from the seven supplied reference phases; it is not a rectangle or a procedural sine arch.
+- The player worm is one ideal geometric `63.14 px` line with round ends and mathematically rounded transitions. Each phase uses a small set of exact straight segments rather than a pixel trace or a procedural sine arch.
 - An opponent is a hollow outline in the layer behind the player.
 - Supplied phase coordinates are treated as the source of truth for shape and placement; no procedural arch is substituted.
-- Background points are sparse, white, randomly distributed across the whole viewport and drift slightly as progress increases.
+- Background points are temporarily disabled in test mode.
 - Race progress is a single thin line spanning the full viewport width. One race length equals one viewport width.
 
 ## Room rules
