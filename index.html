@@ -171,7 +171,7 @@
         hint.style.opacity = '0';
       }
       function takeStep(side, now) {
-        if (worm.finished || (worm.targetPhase === 7 && worm.phase < 6.98)) return;
+        if (worm.finished || (worm.targetPhase === 6 && worm.phase < 5.98)) return;
         if (fingers.size > 1) { stateLabel.textContent = 'release before the next stroke'; return; }
         if (side !== worm.expected) {
           stateLabel.textContent = worm.expected === 'right' ? 'right thumb first' : 'now left thumb';
@@ -181,7 +181,7 @@
         worm.lastStep = now;
         const cadence = Math.max(.65, Math.min(2.5, 440 / interval));
         worm.response = 11 + cadence * 7;
-        worm.targetPhase = side === 'right' ? 3 : 7;
+        worm.targetPhase = side === 'right' ? 3 : 6;
         worm.expected = side === 'right' ? 'left' : 'right';
         worm.scroll += 14 * cadence;
         worm.moved = true;
@@ -239,8 +239,8 @@
         });
       }
       function backgroundOffset(phase) {
-        // Scroll the field in step with the full seven-part worm cycle.
-        return ((worm.cycle + phase / 7) * STEP_ADVANCE) % DESIGN_W;
+        // Scroll the field through the same three phases as each body motion.
+        return ((worm.cycle + phase / 6) * STEP_ADVANCE) % DESIGN_W;
       }
       function drawBackground() {
         const offset = backgroundOffset(worm.phase);
@@ -339,7 +339,7 @@
         const phaseSpeed = 5 + (worm.response - 11) * .58;
         const phaseStep = Math.min(Math.abs(delta), dt * phaseSpeed);
         worm.phase += Math.sign(delta) * phaseStep;
-        if (worm.targetPhase === 7 && worm.phase >= 7) {
+        if (worm.targetPhase === 6 && worm.phase >= 6) {
           worm.cycle += 1;
           worm.phase = 0;
           worm.targetPhase = 0;
