@@ -46,6 +46,8 @@ The seven supplied phases also define the worm's movement across the viewport. C
 
 The rear-end pull, the final fold, the `7 → 1` body morph and the viewport shift are one continuous movement. The left end begins pulling first; the camera follows with a small 0.4-phase delay and completes the same 253 px world advance as the body becomes the next cycle's first phase. Phase interpolation uses a capped phase-per-second velocity instead of a large exponential step, ensuring the delay and intermediate shapes are actually rendered. There is no separate camera catch-up after the worm stops; the whole movement still follows the player's current cadence.
 
+The fold centre starts travelling left at the same moment the fold begins to form. Its 125 px relocation is distributed across phases 3–6, so the bend reaches the next cycle's correct position as the fold closes instead of moving only after the fold is complete.
+
 ## Geometry and visual rules
 
 - Portrait mobile viewport with an internally rotated `852 × 393` scene.
