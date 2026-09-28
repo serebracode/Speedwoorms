@@ -132,7 +132,7 @@
         [[104,314],[219,314],[219,277],[304,295.5],[389,314],[622,314]],
         [[104,314],[219,314],[219,314],[621,314],[621,314],[741,314]],
         [[224,314],[441,314],[510,295.5],[544.5,304.75],[579,314],[742,314]],
-        [[290,314],[450,314],[468,265.5],[502.5,289.75],[537,314],[738,314]],
+        [[290,314],[450,314],[468,265.5],[502.5,289.75],[537,314],[753,314]],
         [[357,314],[462,314],[462,167],[533,167],[533,314],[765,314]]
       ];
       const worm = { phase: 0, targetPhase: 0, cycle: 0, scroll: 0, moved: false, lastStep: 0, expected: 'right', response: 14, color: '#ffb7b7', finished: false };
@@ -153,9 +153,8 @@
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         backgroundDots = Array.from({ length: 24 }, () => ({
           x: Math.random() * DESIGN_W,
-          y: Math.random() * DESIGN_H,
-          radius: 1.05 + Math.random() * .55,
-          alpha: .42 + Math.random() * .34
+          y: Math.random() * (DESIGN_H - 80),
+          radius: 1.2
         }));
       }
       window.addEventListener('resize', resize);
@@ -244,10 +243,10 @@
       }
       function drawBackground() {
         const offset = backgroundOffset(worm.phase);
-        ctx.fillStyle = '#d8d4d6';
+        ctx.fillStyle = '#fff';
+        ctx.globalAlpha = 1;
         for (const dot of backgroundDots) {
           const x = ((dot.x - offset) % DESIGN_W + DESIGN_W) % DESIGN_W;
-          ctx.globalAlpha = dot.alpha;
           ctx.beginPath();
           ctx.arc(x, dot.y, dot.radius, 0, Math.PI * 2);
           ctx.fill();
@@ -358,7 +357,7 @@
         ctx.scale(scale, scale);
         drawBackground();
         const points = currentWormFrame(worm.phase);
-        const bodyCenter = points.reduce((sum, point) => sum + point[0], 0) / points.length;
+        const bodyCenter = (points[0][0] + points[5][0]) / 2;
         const leftOfCenter = DESIGN_W * .46;
         const placement = leftOfCenter - bodyCenter;
         drawWormFrame(points.map(([x, y]) => [x + placement, y]), worm.color);
