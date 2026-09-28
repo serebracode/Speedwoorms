@@ -119,6 +119,7 @@
       let playerName = 'WORM_01';
       let w = 0, h = 0, dpr = 1, last = performance.now();
       let backgroundDots = [];
+      let trailDistance = 0;
       const fingers = new Map();
       // Seven traced centre-lines from the supplied 852 x 393 frames.
       // The complete landscape game is rotated once into the portrait viewport.
@@ -152,8 +153,10 @@
         dpr = Math.min(window.devicePixelRatio || 1, 2); w = window.innerWidth; h = window.innerHeight;
         canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        backgroundDots = Array.from({ length: 24 }, () => ({
-          x: Math.random() * DESIGN_W,
+        // The scene is rotated into portrait: its logical x-axis becomes the
+        // screen's vertical axis. Keep sparse stars within the upper 70%.
+        backgroundDots = Array.from({ length: 18 }, () => ({
+          x: Math.random() * DESIGN_W * .7,
           y: Math.random() * (DESIGN_H - 80),
           radius: 1.2
         }));
@@ -206,6 +209,7 @@
       canvas.addEventListener('contextmenu', event => event.preventDefault());
       resetButton.addEventListener('click', () => {
         fingers.clear();
+        trailDistance = 0;
         Object.assign(worm, { phase: 0, targetPhase: 0, cycle: 0, scroll: 0, moved: false, lastStep: 0, expected: 'right', response: 14, finished: false });
         hint.style.opacity = '1'; stateLabel.textContent = 'right, then left';
       });
@@ -239,9 +243,7 @@
         });
       }
       function backgroundTravel(phase) {
-        // The dots stretch by the forward step, then retrace it as the tail pulls in.
-        const progress = phase <= 3 ? phase / 3 : Math.max(0, (6 - phase) / 3);
-        return Math.max(0, Math.min(1, progress)) * STEP_ADVANCE;
+        return trailDistance;
       }
       function drawBackground() {
         const travel = backgroundTravel(worm.phase);
@@ -250,13 +252,21 @@
         ctx.globalAlpha = 1;
         ctx.lineWidth = 2.4;
         ctx.lineCap = 'round';
-        for (const dot of backgroundDots) {
-          if (travel < 1) {
+        // During recovery, the endpoint of each streak sweeps from right to
+        // left, collapsing the streak back into its dot. The order follows
+        // screen-right to screen-left after the scene rotation (low y to high y).
+        const recovery = worm.phase >= 3 ? Math.max(0, Math.min(1, 1 - travel / STEP_ADVANCE)) : 0;
+        const orderedDots = [...backgroundDots].sort((a, b) => a.y - b.y);
+        for (let i = 0; i < orderedDots.length; i++) {
+          const dot = orderedDots[i];
+          const localRecovery = Math.max(0, Math.min(1, (recovery - i / orderedDots.length * .72) / .28));
+          const localTravel = travel * (1 - localRecovery);
+          if (localTravel < 1) {
             ctx.beginPath();
             ctx.arc(dot.x, dot.y, dot.radius, 0, Math.PI * 2);
             ctx.fill();
           } else {
-            const startX = dot.x - travel;
+            const startX = dot.x - localTravel;
             ctx.beginPath();
             if (startX < 0) {
               ctx.moveTo(0, dot.y);
@@ -342,6 +352,7 @@
       document.getElementById('raceAgain').addEventListener('click', () => {
         results.classList.remove('show');
         fingers.clear();
+        trailDistance = 0;
         Object.assign(worm, { phase: 0, targetPhase: 0, cycle: 0, scroll: 0, moved: false, lastStep: 0, expected: 'right', response: 14, finished: false });
         distanceLabel.style.width = '0%';
         if (TEST_MODE) {
@@ -357,6 +368,16 @@
         const phaseSpeed = 5 + (worm.response - 11) * .58;
         const phaseStep = Math.min(Math.abs(delta), dt * phaseSpeed);
         worm.phase += Math.sign(delta) * phaseStep;
+        if (worm.phase < 3) {
+          trailDistance = STEP_ADVANCE * Math.max(0, worm.phase / 3);
+        } else if (worm.targetPhase === 6) {
+          trailDistance = STEP_ADVANCE * Math.max(0, 1 - (worm.phase - 3) / 3);
+        } else {
+          // Once fully extended, the streaks recover on their own, at the
+          // same rate as a normal pull, even if the player pauses before the
+          // next thumb stroke.
+          trailDistance = Math.max(0, trailDistance - STEP_ADVANCE * (phaseSpeed / 3) * dt);
+        }
         if (worm.targetPhase === 6 && worm.phase >= 6) {
           worm.cycle += 1;
           worm.phase = 0;
