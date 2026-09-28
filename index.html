@@ -126,7 +126,6 @@
       const DESIGN_H = 393;
       const STEP_ADVANCE = 253;
       const BODY_SAMPLES = 56;
-      const WORM_WIDTH = 63.14;
       const TEST_MODE = true;
       const wormFrames = [
         [[104,314],[209,314],[209,167],[280,167],[280,314],[512,314]],
@@ -137,7 +136,7 @@
         [[210,314],[483,314],[552,265.5],[621,217],[621,314],[738,314]],
         [[357,314],[587,314],[587,167],[658,167],[658,314],[765,314]]
       ];
-      const worm = { phase: 0, targetPhase: 0, phaseVelocity: 0, cycle: 0, scroll: 0, moved: false, lastStep: 0, expected: 'right', response: 14, color: '#ffb7b7', finished: false };
+      const worm = { phase: 0, targetPhase: 0, cycle: 0, scroll: 0, moved: false, lastStep: 0, expected: 'right', response: 14, color: '#ffb7b7', finished: false };
 
       const telegram = window.Telegram?.WebApp;
       function telegramCall(method) {
@@ -175,7 +174,7 @@
         hint.style.opacity = '0';
       }
       function takeStep(side, now) {
-        if (worm.finished) return;
+        if (worm.finished || (worm.targetPhase === 7 && worm.phase < 6.98)) return;
         if (fingers.size > 1) { stateLabel.textContent = 'release before the next stroke'; return; }
         if (side !== worm.expected) {
           stateLabel.textContent = worm.expected === 'right' ? 'right thumb first' : 'now left thumb';
@@ -210,7 +209,7 @@
       canvas.addEventListener('contextmenu', event => event.preventDefault());
       resetButton.addEventListener('click', () => {
         fingers.clear();
-        Object.assign(worm, { phase: 0, targetPhase: 0, phaseVelocity: 0, cycle: 0, scroll: 0, moved: false, lastStep: 0, expected: 'right', response: 14, finished: false });
+        Object.assign(worm, { phase: 0, targetPhase: 0, cycle: 0, scroll: 0, moved: false, lastStep: 0, expected: 'right', response: 14, finished: false });
         hint.style.opacity = '1'; stateLabel.textContent = 'right, then left';
       });
 
@@ -353,23 +352,14 @@
         }
       });
       function update(dt) {
-        const cadence = (worm.response - 11) / 7;
-        const omega = 4 + cadence * 1.2;
-        const error = worm.phase - worm.targetPhase;
-        const tangent = worm.phaseVelocity + omega * error;
-        const decay = Math.exp(-omega * dt);
-        const nextError = (error + tangent * dt) * decay;
-        worm.phaseVelocity = (worm.phaseVelocity - omega * tangent * dt) * decay;
-        worm.phase = worm.targetPhase + nextError;
-        if (Math.abs(nextError) < .002 && Math.abs(worm.phaseVelocity) < .01) {
-          worm.phase = worm.targetPhase;
-          worm.phaseVelocity = 0;
-        }
-        if (worm.targetPhase === 7 && worm.phase === 7) {
+        const delta = worm.targetPhase - worm.phase;
+        const phaseSpeed = 5 + (worm.response - 11) * .58;
+        const phaseStep = Math.min(Math.abs(delta), dt * phaseSpeed);
+        worm.phase += Math.sign(delta) * phaseStep;
+        if (worm.targetPhase === 7 && worm.phase >= 7) {
           worm.cycle += 1;
           worm.phase = 0;
           worm.targetPhase = 0;
-          worm.phaseVelocity = 0;
         }
         distanceLabel.style.width = Math.min(100, (worm.scroll / Math.max(1, w)) * 100) + '%';
         
