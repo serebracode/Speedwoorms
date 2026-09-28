@@ -44,7 +44,7 @@ A leftward motion only reloads the same thumb for its next rightward working str
 
 The seven supplied phases also define the worm's movement across the viewport. Completing the cycle advances the body by 253 reference pixels.
 
-During the returning half of each step, the viewport follows that same 253 px advance. At the final phase the worm is therefore back in its original left-side screen position, while its world position continues moving forward.
+After the seventh phase, a short automatic wrap transition morphs the right-folded body into the next cycle's left-folded first phase. From the middle of that transition, the viewport follows the same 253 px world advance and lands the worm back in its original left-side screen position. The transition duration follows the current movement response, so a faster crawl also produces a faster camera catch-up.
 
 ## Geometry and visual rules
 
