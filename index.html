@@ -126,6 +126,7 @@
       const DESIGN_H = 393;
       const STEP_ADVANCE = 253;
       const FOLD_TRAVEL = 125;
+      const BODY_SAMPLES = 56;
       const TEST_MODE = true;
       const wormFrames = [
         [[104,314],[209,314],[209,167],[280,167],[280,314],[512,314]],
@@ -214,31 +215,55 @@
       });
 
       function lerp(a, b, t) { return a + (b - a) * t; }
-      function shiftedFrame(frame, dx) { return frame.map(point => [point[0] + dx, point[1]]); }
-      function currentWormFrame(phase) {
-        if (phase >= 6) {
-          const raw = Math.max(0, Math.min(1, phase - 6));
-          const shapeT = raw * raw * (3 - 2 * raw);
-          const from = shiftedFrame(wormFrames[6], worm.cycle * STEP_ADVANCE).map((point, i) => [
-            point[0] - (i > 0 && i < 5 ? FOLD_TRAVEL : 0),
-            point[1]
-          ]);
-          const to = shiftedFrame(wormFrames[0], (worm.cycle + 1) * STEP_ADVANCE);
-          return from.map((point, i) => [
-            lerp(point[0], to[i][0], shapeT),
-            lerp(point[1], to[i][1], shapeT)
-          ]);
+      function resampleFrame(frame, count = BODY_SAMPLES) {
+        const lengths = [0];
+        for (let i = 1; i < frame.length; i++) {
+          lengths.push(lengths[i - 1] + Math.hypot(frame[i][0] - frame[i - 1][0], frame[i][1] - frame[i - 1][1]));
         }
-        const frames = wormFrames;
-        const index = Math.min(5, Math.floor(phase));
+        const total = lengths[lengths.length - 1];
+        return Array.from({ length: count }, (_, sample) => {
+          const distance = total * sample / (count - 1);
+          let segment = 1;
+          while (segment < lengths.length - 1 && lengths[segment] < distance) segment++;
+          const span = lengths[segment] - lengths[segment - 1];
+          const t = span ? (distance - lengths[segment - 1]) / span : 0;
+          return [lerp(frame[segment - 1][0], frame[segment][0], t), lerp(frame[segment - 1][1], frame[segment][1], t)];
+        });
+      }
+      const sampledWormFrames = wormFrames.map(frame => resampleFrame(frame));
+      function wrappedSample(frameIndex, pointIndex) {
+        const frameCount = sampledWormFrames.length;
+        const cycle = Math.floor(frameIndex / frameCount);
+        const normalizedIndex = ((frameIndex % frameCount) + frameCount) % frameCount;
+        const advance = cycle * STEP_ADVANCE;
+        const source = sampledWormFrames[normalizedIndex][pointIndex];
+        return [source[0] + advance, source[1]];
+      }
+      function catmull(p0, p1, p2, p3, t) {
+        const t2 = t * t, t3 = t2 * t;
+        return .5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3);
+      }
+      function foldInfluence(position) {
+        const smooth = (a, b, x) => {
+          const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+          return t * t * (3 - 2 * t);
+        };
+        return smooth(.29, .38, position) * (1 - smooth(.82, .91, position));
+      }
+      function currentWormFrame(phase) {
+        const index = Math.floor(phase);
         const t = Math.max(0, Math.min(1, phase - index));
-        const a = frames[index], b = frames[index + 1];
         const foldRaw = Math.max(0, Math.min(1, (phase - 3) / 3));
         const foldShift = foldRaw * foldRaw * (3 - 2 * foldRaw) * FOLD_TRAVEL;
-        return a.map((point, i) => [
-          lerp(point[0], b[i][0], t) + worm.cycle * STEP_ADVANCE - (i > 0 && i < 5 ? foldShift : 0),
-          lerp(point[1], b[i][1], t)
-        ]);
+        return sampledWormFrames[0].map((_, pointIndex) => {
+          const p0 = wrappedSample(index - 1 + worm.cycle * 7, pointIndex);
+          const p1 = wrappedSample(index + worm.cycle * 7, pointIndex);
+          const p2 = wrappedSample(index + 1 + worm.cycle * 7, pointIndex);
+          const p3 = wrappedSample(index + 2 + worm.cycle * 7, pointIndex);
+          const alongBody = pointIndex / (BODY_SAMPLES - 1);
+          const shift = phase >= 3 && phase < 6 ? foldShift * foldInfluence(alongBody) : phase >= 6 ? FOLD_TRAVEL * foldInfluence(alongBody) * Math.max(0, 1 - (phase - 6)) : 0;
+          return [catmull(p0[0], p1[0], p2[0], p3[0], t) - shift, catmull(p0[1], p1[1], p2[1], p3[1], t)];
+        });
       }
       function cameraOffset(phase) {
         // Let the rear (left) end visibly start first, then let the camera
