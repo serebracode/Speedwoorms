@@ -125,6 +125,7 @@
       const DESIGN_W = 852;
       const DESIGN_H = 393;
       const STEP_ADVANCE = 253;
+      const FOLD_TRAVEL = 125;
       const TEST_MODE = true;
       const wormFrames = [
         [[104,314],[209,314],[209,167],[280,167],[280,314],[512,314]],
@@ -218,7 +219,10 @@
         if (phase >= 6) {
           const raw = Math.max(0, Math.min(1, phase - 6));
           const shapeT = raw * raw * (3 - 2 * raw);
-          const from = shiftedFrame(wormFrames[6], worm.cycle * STEP_ADVANCE);
+          const from = shiftedFrame(wormFrames[6], worm.cycle * STEP_ADVANCE).map((point, i) => [
+            point[0] - (i > 0 && i < 5 ? FOLD_TRAVEL : 0),
+            point[1]
+          ]);
           const to = shiftedFrame(wormFrames[0], (worm.cycle + 1) * STEP_ADVANCE);
           return from.map((point, i) => [
             lerp(point[0], to[i][0], shapeT),
@@ -229,8 +233,10 @@
         const index = Math.min(5, Math.floor(phase));
         const t = Math.max(0, Math.min(1, phase - index));
         const a = frames[index], b = frames[index + 1];
+        const foldRaw = Math.max(0, Math.min(1, (phase - 3) / 3));
+        const foldShift = foldRaw * foldRaw * (3 - 2 * foldRaw) * FOLD_TRAVEL;
         return a.map((point, i) => [
-          lerp(point[0], b[i][0], t) + worm.cycle * STEP_ADVANCE,
+          lerp(point[0], b[i][0], t) + worm.cycle * STEP_ADVANCE - (i > 0 && i < 5 ? foldShift : 0),
           lerp(point[1], b[i][1], t)
         ]);
       }
