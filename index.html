@@ -119,13 +119,12 @@
       let playerName = 'WORM_01';
       let w = 0, h = 0, dpr = 1, last = performance.now();
       let backgroundDots = [];
-      let trailDistance = 0;
       const fingers = new Map();
       // Seven traced centre-lines from the supplied 852 x 393 frames.
       // The complete landscape game is rotated once into the portrait viewport.
       const DESIGN_W = 852;
       const DESIGN_H = 393;
-      const STEP_ADVANCE = 253;
+      const STEP_ADVANCE = 229;
       const TEST_MODE = true;
       // After the straight pose, retrace frames 2 → 0 while the background advances.
       const wormFrames = [
@@ -153,13 +152,12 @@
         dpr = Math.min(window.devicePixelRatio || 1, 2); w = window.innerWidth; h = window.innerHeight;
         canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        // The scene is rotated into portrait: its logical x-axis becomes the
-        // screen's vertical axis. Keep sparse stars within the upper 70%.
-        backgroundDots = Array.from({ length: 18 }, () => ({
-          x: Math.random() * DESIGN_W * .7,
-          y: Math.random() * (DESIGN_H - 80),
-          radius: 1.2
-        }));
+        // Logical x maps to screen height after rotation. Random, sparse,
+        // equal white points occupy only the upper 70% of the portrait view.
+        backgroundDots = Array.from({ length: 18 }, (_, order) => {
+          const x = Math.random() * DESIGN_W * .7;
+          return { x, anchorX: x, y: Math.random() * (DESIGN_H - 80), radius: 1.2, order, segments: [], current: null };
+        }).sort((a, b) => a.y - b.y).map((dot, order) => ({ ...dot, order }));
       }
       window.addEventListener('resize', resize);
       resize();
@@ -209,7 +207,7 @@
       canvas.addEventListener('contextmenu', event => event.preventDefault());
       resetButton.addEventListener('click', () => {
         fingers.clear();
-        trailDistance = 0;
+        resetBackgroundDots();
         Object.assign(worm, { phase: 0, targetPhase: 0, cycle: 0, scroll: 0, moved: false, lastStep: 0, expected: 'right', response: 14, finished: false });
         hint.style.opacity = '1'; stateLabel.textContent = 'right, then left';
       });
@@ -242,45 +240,72 @@
           return [catmull(p0[0], p1[0], p2[0], p3[0], t), catmull(p0[1], p1[1], p2[1], p3[1], t)];
         });
       }
-      function backgroundTravel(phase) {
-        return trailDistance;
-      }
       function drawBackground() {
-        const travel = backgroundTravel(worm.phase);
         ctx.fillStyle = '#fff';
         ctx.strokeStyle = '#fff';
         ctx.globalAlpha = 1;
         ctx.lineWidth = 2.4;
         ctx.lineCap = 'round';
-        // During recovery, the endpoint of each streak sweeps from right to
-        // left, collapsing the streak back into its dot. The order follows
-        // screen-right to screen-left after the scene rotation (low y to high y).
-        const recovery = worm.phase >= 3 ? Math.max(0, Math.min(1, 1 - travel / STEP_ADVANCE)) : 0;
-        const orderedDots = [...backgroundDots].sort((a, b) => a.y - b.y);
-        for (let i = 0; i < orderedDots.length; i++) {
-          const dot = orderedDots[i];
-          const localRecovery = Math.max(0, Math.min(1, (recovery - i / orderedDots.length * .72) / .28));
-          const localTravel = travel * (1 - localRecovery);
-          if (localTravel < 1) {
+        for (const dot of backgroundDots) {
+          const visibleSegments = dot.segments.filter(segment => segment.right - segment.left > .5);
+          if (!visibleSegments.length) {
             ctx.beginPath();
-            ctx.arc(dot.x, dot.y, dot.radius, 0, Math.PI * 2);
+            ctx.arc(dot.anchorX, dot.y, dot.radius, 0, Math.PI * 2);
             ctx.fill();
-          } else {
-            const startX = dot.x - localTravel;
+          }
+          for (const segment of visibleSegments) {
             ctx.beginPath();
-            if (startX < 0) {
-              ctx.moveTo(0, dot.y);
-              ctx.lineTo(dot.x, dot.y);
-              ctx.moveTo(DESIGN_W + startX, dot.y);
-              ctx.lineTo(DESIGN_W, dot.y);
-            } else {
-              ctx.moveTo(startX, dot.y);
-              ctx.lineTo(dot.x, dot.y);
-            }
+            ctx.moveTo(segment.left, dot.y);
+            ctx.lineTo(segment.right, dot.y);
             ctx.stroke();
           }
         }
         ctx.globalAlpha = 1;
+      }
+      function resetBackgroundDots() {
+        for (const dot of backgroundDots) {
+          dot.anchorX = dot.x;
+          dot.current = null;
+          dot.segments.length = 0;
+        }
+      }
+      function updateBackgroundMotion(dt, phaseSpeed) {
+        const headX = currentWormFrame(worm.phase)[5][0];
+        const headTravel = Math.max(0, Math.min(STEP_ADVANCE, headX - wormFrames[0][5][0]));
+        const recoverySpeed = (STEP_ADVANCE / 3) * phaseSpeed * .58;
+        const recoveryWave = (3 / phaseSpeed) * .28;
+        for (const dot of backgroundDots) {
+          if (worm.phase < 3) {
+            if (dot.current && !dot.current.growing) dot.current = null;
+            const delay = dot.order / Math.max(1, backgroundDots.length - 1) * STEP_ADVANCE * .38;
+            if (!dot.current && headTravel > delay) {
+              dot.current = { left: dot.anchorX, right: dot.anchorX, growing: true, wait: 0 };
+              dot.segments.push(dot.current);
+            }
+            if (dot.current?.growing) {
+              const extension = Math.max(0, headTravel - delay);
+              dot.current.left = dot.anchorX - extension;
+              dot.current.right = dot.anchorX;
+            }
+          } else if (dot.current?.growing) {
+            // The leftmost endpoint survives as the next burst's origin.
+            dot.current.growing = false;
+            dot.anchorX = dot.current.left;
+            dot.current.wait = dot.order / Math.max(1, backgroundDots.length - 1) * recoveryWave;
+          }
+
+          for (const segment of dot.segments) {
+            if (segment.growing) continue;
+            if (segment.wait > 0) segment.wait = Math.max(0, segment.wait - dt);
+            else segment.right = Math.max(segment.left, segment.right - recoverySpeed * dt);
+          }
+          dot.segments = dot.segments.filter(segment => segment.right - segment.left > .5);
+          if (dot.current && !dot.segments.includes(dot.current)) dot.current = null;
+          if (!dot.segments.length && dot.anchorX < 0) {
+            const band = DESIGN_W * .7;
+            dot.anchorX = ((dot.anchorX % band) + band) % band;
+          }
+        }
       }
       function roundedPath(points, radius) {
         const clean = points.filter((point, index) => !index || Math.hypot(point[0] - points[index - 1][0], point[1] - points[index - 1][1]) > .01);
@@ -352,7 +377,7 @@
       document.getElementById('raceAgain').addEventListener('click', () => {
         results.classList.remove('show');
         fingers.clear();
-        trailDistance = 0;
+        resetBackgroundDots();
         Object.assign(worm, { phase: 0, targetPhase: 0, cycle: 0, scroll: 0, moved: false, lastStep: 0, expected: 'right', response: 14, finished: false });
         distanceLabel.style.width = '0%';
         if (TEST_MODE) {
@@ -368,16 +393,7 @@
         const phaseSpeed = 5 + (worm.response - 11) * .58;
         const phaseStep = Math.min(Math.abs(delta), dt * phaseSpeed);
         worm.phase += Math.sign(delta) * phaseStep;
-        if (worm.phase < 3) {
-          trailDistance = STEP_ADVANCE * Math.max(0, worm.phase / 3);
-        } else if (worm.targetPhase === 6) {
-          trailDistance = STEP_ADVANCE * Math.max(0, 1 - (worm.phase - 3) / 3);
-        } else {
-          // Once fully extended, the streaks recover on their own, at the
-          // same rate as a normal pull, even if the player pauses before the
-          // next thumb stroke.
-          trailDistance = Math.max(0, trailDistance - STEP_ADVANCE * (phaseSpeed / 3) * dt);
-        }
+        updateBackgroundMotion(dt, phaseSpeed);
         if (worm.targetPhase === 6 && worm.phase >= 6) {
           worm.cycle += 1;
           worm.phase = 0;
