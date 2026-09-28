@@ -75,7 +75,10 @@
       const worm = { phase: 0, targetPhase: 0, cycle: 0, scroll: 0, moved: false, lastStep: 0, expected: 'right', response: 14, color: '#ffb7b7', finished: false };
       const opponent = { phase: 0, targetPhase: 3, cycle: 0, pause: 0, color: '#343234' };
       let raceRunning = false;
-      let roomCode = Math.random().toString(36).slice(2, 8).toUpperCase();
+      const inviteParams = new URLSearchParams(location.search);
+      const incomingRoomCode = inviteParams.get('r') || inviteParams.get('room');
+      let roomCode = incomingRoomCode || sessionStorage.getItem('speedwoorms-room') || Math.random().toString(36).slice(2, 10).toUpperCase();
+      if (!incomingRoomCode) sessionStorage.setItem('speedwoorms-room', roomCode);
 
       const telegram = window.Telegram?.WebApp;
       function telegramCall(method) {
@@ -276,8 +279,10 @@
       }
       document.getElementById('inviteButton').addEventListener('click', async () => {
         const inviteUrl = new URL(location.href);
-        inviteUrl.searchParams.set('room', roomCode);
-        const message = `Join my Speedwoorms race. Room ${roomCode}`;
+        inviteUrl.search = '';
+        inviteUrl.hash = '';
+        inviteUrl.searchParams.set('r', roomCode);
+        const message = 'Join my Speed Worms race';
         try {
           if (telegram?.openTelegramLink) {
             const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(inviteUrl.href)}&text=${encodeURIComponent(message)}`;
