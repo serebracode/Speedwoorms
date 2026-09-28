@@ -18,10 +18,13 @@ There is deliberately no local race, test countdown or fabricated local result. 
 
 The worm has a fixed body length. It never stretches or shrinks.
 
-There are two resting states:
+The supplied motion is defined by seven keyframes:
 
-- **Folded** — a raised arch with both ends still touching the baseline.
-- **Extended** — the same body lying as one continuous horizontal line.
+- the first three frames unfold the body from the left;
+- the fourth frame is a fully extended 637 px line;
+- the last three frames pull the rear end forward and rebuild the folded form on the right.
+
+The reference artboard is an iPhone 15 Pro portrait viewport (`393 × 852`). The game scene itself is authored as `852 × 393`, rotated 90° inside the portrait viewport and scaled uniformly on other screens. Geometry must never be stretched independently by axis.
 
 The movement loop is fixed and cannot be gained through random tapping:
 
@@ -41,12 +44,10 @@ The worm stays centred in the viewport. Movement is read through the slow invers
 
 ## Geometry and visual rules
 
-- Portrait mobile layout; no device rotation in the current Pages client.
-- The player worm is a fully solid, rounded stroke.
+- Portrait mobile viewport with an internally rotated `852 × 393` scene.
+- The player worm follows the supplied seven rectangular-outline phases, with a reference stroke width of `63.14 px` and reference colour `#FFB7B7`.
 - An opponent is a hollow outline in the layer behind the player.
-- Both worms sit on one baseline.
-- The folded arch is asymmetric: the short front segment is on the left; the longer rear segment is on the right.
-- Body length is preserved mathematically: its central arc has constant length while its chord and height change.
+- Supplied phase coordinates are treated as the source of truth for shape and placement; no procedural arch is substituted.
 - Background points are sparse, white, randomly distributed across the whole viewport and drift slightly as progress increases.
 - Race progress is a single thin line spanning the full viewport width. One race length equals one viewport width.
 
