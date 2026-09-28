@@ -138,11 +138,14 @@
       const worm = { phase: 0, targetPhase: 0, cycle: 0, scroll: 0, moved: false, lastStep: 0, expected: 'right', response: 14, color: '#ffb7b7', finished: false };
 
       const telegram = window.Telegram?.WebApp;
-      telegram?.ready();
-      telegram?.expand();
-      telegram?.requestFullscreen?.();
-      telegram?.disableVerticalSwipes?.();
-      if (matchMedia('(orientation: portrait)').matches) telegram?.lockOrientation?.();
+      function telegramCall(method) {
+        try { telegram?.[method]?.(); } catch (_) { /* unavailable outside a supported Mini App client */ }
+      }
+      telegramCall('ready');
+      telegramCall('expand');
+      telegramCall('requestFullscreen');
+      telegramCall('disableVerticalSwipes');
+      if (matchMedia('(orientation: portrait)').matches) telegramCall('lockOrientation');
 
       function resize() {
         dpr = Math.min(window.devicePixelRatio || 1, 2); w = window.innerWidth; h = window.innerHeight;
