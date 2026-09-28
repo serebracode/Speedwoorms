@@ -232,9 +232,9 @@
         ]);
       }
       function cameraOffset(phase) {
-        // Camera motion overlaps the last supplied fold and the 7 → 1 morph,
-        // making them one continuous movement instead of a separate catch-up.
-        const raw = Math.max(0, Math.min(1, (phase - 5) / 2));
+        // The camera starts exactly when the rear (left) end begins pulling
+        // forward, then follows that whole movement through the 7 → 1 morph.
+        const raw = Math.max(0, Math.min(1, (phase - 3) / 4));
         const eased = raw * raw * (3 - 2 * raw);
         return (worm.cycle + eased) * STEP_ADVANCE;
       }
