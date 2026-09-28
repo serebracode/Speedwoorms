@@ -234,6 +234,14 @@
           lerp(point[1], b[i][1], t)
         ]);
       }
+      function cameraOffset(phase) {
+        // The first half of the step unfolds inside a fixed viewport.
+        // During the returning half, the viewport follows the worm by one
+        // complete step so the finished body lands back at the left start.
+        const raw = Math.max(0, Math.min(1, (phase - 3) / 3));
+        const eased = raw * raw * (3 - 2 * raw);
+        return (worm.cycle + eased) * STEP_ADVANCE;
+      }
       function roundedPath(points, radius) {
         const clean = points.filter((point, index) => !index || Math.hypot(point[0] - points[index - 1][0], point[1] - points[index - 1][1]) > .01);
         ctx.beginPath();
@@ -331,6 +339,7 @@
         ctx.translate(sceneX + DESIGN_H * scale, sceneY);
         ctx.rotate(Math.PI / 2);
         ctx.scale(scale, scale);
+        ctx.translate(-cameraOffset(worm.phase), 0);
         drawWormFrame(currentWormFrame(worm.phase), worm.color);
         ctx.restore();
       }
