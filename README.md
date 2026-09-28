@@ -44,6 +44,8 @@ A leftward motion only reloads the same thumb for its next rightward working str
 
 The seven supplied phases also define the worm's movement across the viewport. Completing the cycle advances the body by 253 reference pixels.
 
+During the returning half of each step, the viewport follows that same 253 px advance. At the final phase the worm is therefore back in its original left-side screen position, while its world position continues moving forward.
+
 ## Geometry and visual rules
 
 - Portrait mobile viewport with an internally rotated `852 × 393` scene.
