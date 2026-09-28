@@ -131,9 +131,9 @@
         [[104,314],[219,314],[219,217],[295,265.5],[371,314],[572,314]],
         [[104,314],[219,314],[219,277],[304,295.5],[389,314],[622,314]],
         [[104,314],[219,314],[219,314],[621,314],[621,314],[741,314]],
-        [[224,314],[483,314],[552,295.5],[586.5,304.75],[621,314],[742,314]],
-        [[210,314],[483,314],[552,265.5],[586.5,289.75],[621,314],[738,314]],
-        [[357,314],[587,314],[587,167],[658,167],[658,314],[765,314]]
+        [[224,314],[441,314],[510,295.5],[544.5,304.75],[579,314],[742,314]],
+        [[210,314],[399,314],[468,265.5],[502.5,289.75],[537,314],[738,314]],
+        [[357,314],[462,314],[462,167],[533,167],[533,314],[765,314]]
       ];
       const worm = { phase: 0, targetPhase: 0, cycle: 0, scroll: 0, moved: false, lastStep: 0, expected: 'right', response: 14, color: '#ffb7b7', finished: false };
 
@@ -232,8 +232,8 @@
           const p1 = wrappedAnchor(index + worm.cycle * 7, anchorIndex);
           const p2 = wrappedAnchor(index + 1 + worm.cycle * 7, anchorIndex);
           const p3 = wrappedAnchor(index + 2 + worm.cycle * 7, anchorIndex);
-          // During the final tail pull, E-D-C-B translate together instead
-          // of acquiring different Catmull-Rom speeds from neighbouring keys.
+          // The pull is already distributed across the build keys (3 → 6).
+          // Keep E-D-C-B still in 6 → 7 so it is not delayed until after folding.
           if (index === 6 && anchorIndex >= 1 && anchorIndex <= 4) {
             return [p1[0] + (p2[0] - p1[0]) * t, p1[1] + (p2[1] - p1[1]) * t];
           }
