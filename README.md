@@ -6,7 +6,7 @@ The visual language is deliberately reduced to a black field, sparse white backg
 
 ## Current client flow
 
-The published client currently starts directly in **test mode**. Lobby and room UI remain in the source but are bypassed so worm geometry, animation and touch control can be tested immediately on a phone.
+The published client currently starts directly in **test mode**. Lobby and room UI remain in the source but are bypassed so worm geometry, animation and touch control can be tested immediately on a phone. The steps below describe the retained future network flow:
 
 1. The player enters a name and selects a worm colour.
 2. The player confirms **READY**.
@@ -42,12 +42,12 @@ right thumb →      →  left thumb →
 
 A leftward motion only reloads the same thumb for its next rightward working stroke. The client rejects a second working stroke while another finger is still down, and it rejects the wrong order. Fast, clean alternation produces more progress.
 
-The worm stays centred in the viewport. Movement is read through the slow inverse drift of background points rather than dragging the body across the screen.
+The seven supplied phases also define the worm's movement across the viewport. Completing the cycle advances the body by 253 reference pixels.
 
 ## Geometry and visual rules
 
 - Portrait mobile viewport with an internally rotated `852 × 393` scene.
-- The player worm follows the supplied seven rectangular-outline phases, with a reference stroke width of `63.14 px` and reference colour `#FFB7B7`.
+- The player worm is one solid `63.14 px` line with round ends and joins. Its centre-line is traced from the seven supplied reference phases; it is not a rectangle or a procedural sine arch.
 - An opponent is a hollow outline in the layer behind the player.
 - Supplied phase coordinates are treated as the source of truth for shape and placement; no procedural arch is substituted.
 - Background points are sparse, white, randomly distributed across the whole viewport and drift slightly as progress increases.
@@ -80,7 +80,7 @@ For a ten-player race, the player sees their own solid worm, a few nearest oppon
 
 ## Telegram orientation
 
-Telegram Mini Apps (Bot API 8+) provide `lockOrientation()`. It locks the current device orientation; it does not command a phone to rotate. The planned Mini App should start in portrait, then lock portrait only when it detects that portrait is already active.
+The app opens in portrait, draws the complete horizontal `852 × 393` game once at 90° across the portrait viewport, and calls Telegram Mini Apps' `lockOrientation()` when portrait is active. Touch coordinates are converted into the rotated game's coordinate system, so left/right thumbs and strokes remain correct when the phone is held for the horizontal game.
 
 ## Next implementation steps
 
