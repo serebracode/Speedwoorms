@@ -233,8 +233,10 @@
           const p2 = wrappedAnchor(index + 1 + worm.cycle * 7, anchorIndex);
           const p3 = wrappedAnchor(index + 2 + worm.cycle * 7, anchorIndex);
           // The pull is already distributed across the build keys (3 → 6).
-          // Keep E-D-C-B still in 6 → 7 so it is not delayed until after folding.
-          if (index === 6 && anchorIndex >= 1 && anchorIndex <= 4) {
+          // Keep the folded body still in 6 → 7. Catmull-Rom otherwise moves
+          // F slightly even though its frame-6 and next-frame positions match,
+          // making the tail (F-E) twitch before the cycle wraps.
+          if (index === 6 && anchorIndex <= 4) {
             return [p1[0] + (p2[0] - p1[0]) * t, p1[1] + (p2[1] - p1[1]) * t];
           }
           return [catmull(p0[0], p1[0], p2[0], p3[0], t), catmull(p0[1], p1[1], p2[1], p3[1], t)];
