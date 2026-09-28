@@ -135,7 +135,7 @@
         [[210,314],[483,314],[552,265.5],[621,217],[621,314],[738,314]],
         [[357,314],[587,314],[587,167],[658,167],[658,314],[765,314]]
       ];
-      const worm = { phase: 0, targetPhase: 0, cycle: 0, wrapping: false, wrap: 0, scroll: 0, moved: false, lastStep: 0, expected: 'right', response: 14, color: '#ffb7b7', finished: false };
+      const worm = { phase: 0, targetPhase: 0, cycle: 0, scroll: 0, moved: false, lastStep: 0, expected: 'right', response: 14, color: '#ffb7b7', finished: false };
 
       const telegram = window.Telegram?.WebApp;
       telegram?.ready();
@@ -170,7 +170,7 @@
         hint.style.opacity = '0';
       }
       function takeStep(side, now) {
-        if (worm.finished || worm.wrapping) return;
+        if (worm.finished || (worm.targetPhase === 7 && worm.phase < 6.98)) return;
         if (fingers.size > 1) { stateLabel.textContent = 'release before the next stroke'; return; }
         if (side !== worm.expected) {
           stateLabel.textContent = worm.expected === 'right' ? 'right thumb first' : 'now left thumb';
@@ -180,7 +180,7 @@
         worm.lastStep = now;
         const cadence = Math.max(.65, Math.min(2.5, 440 / interval));
         worm.response = 11 + cadence * 7;
-        worm.targetPhase = side === 'right' ? 3 : 6;
+        worm.targetPhase = side === 'right' ? 3 : 7;
         worm.expected = side === 'right' ? 'left' : 'right';
         worm.scroll += 14 * cadence;
         worm.moved = true;
@@ -205,15 +205,16 @@
       canvas.addEventListener('contextmenu', event => event.preventDefault());
       resetButton.addEventListener('click', () => {
         fingers.clear();
-        Object.assign(worm, { phase: 0, targetPhase: 0, cycle: 0, wrapping: false, wrap: 0, scroll: 0, moved: false, lastStep: 0, expected: 'right', response: 14, finished: false });
+        Object.assign(worm, { phase: 0, targetPhase: 0, cycle: 0, scroll: 0, moved: false, lastStep: 0, expected: 'right', response: 14, finished: false });
         hint.style.opacity = '1'; stateLabel.textContent = 'right, then left';
       });
 
       function lerp(a, b, t) { return a + (b - a) * t; }
       function shiftedFrame(frame, dx) { return frame.map(point => [point[0] + dx, point[1]]); }
       function currentWormFrame(phase) {
-        if (worm.wrapping) {
-          const shapeT = worm.wrap * worm.wrap * (3 - 2 * worm.wrap);
+        if (phase >= 6) {
+          const raw = Math.max(0, Math.min(1, phase - 6));
+          const shapeT = raw * raw * (3 - 2 * raw);
           const from = shiftedFrame(wormFrames[6], worm.cycle * STEP_ADVANCE);
           const to = shiftedFrame(wormFrames[0], (worm.cycle + 1) * STEP_ADVANCE);
           return from.map((point, i) => [
@@ -230,11 +231,10 @@
           lerp(point[1], b[i][1], t)
         ]);
       }
-      function cameraOffset() {
-        if (!worm.wrapping) return worm.cycle * STEP_ADVANCE;
-        // Hold the last phase briefly, then let the viewport catch up while
-        // the body finishes morphing into the next cycle's first phase.
-        const raw = Math.max(0, Math.min(1, (worm.wrap - .22) / .78));
+      function cameraOffset(phase) {
+        // Camera motion overlaps the last supplied fold and the 7 → 1 morph,
+        // making them one continuous movement instead of a separate catch-up.
+        const raw = Math.max(0, Math.min(1, (phase - 5) / 2));
         const eased = raw * raw * (3 - 2 * raw);
         return (worm.cycle + eased) * STEP_ADVANCE;
       }
@@ -306,7 +306,7 @@
       document.getElementById('raceAgain').addEventListener('click', () => {
         results.classList.remove('show');
         fingers.clear();
-        Object.assign(worm, { phase: 0, targetPhase: 0, cycle: 0, wrapping: false, wrap: 0, scroll: 0, moved: false, lastStep: 0, expected: 'right', response: 14, finished: false });
+        Object.assign(worm, { phase: 0, targetPhase: 0, cycle: 0, scroll: 0, moved: false, lastStep: 0, expected: 'right', response: 14, finished: false });
         distanceLabel.style.width = '0%';
         if (TEST_MODE) {
           startTestMode();
@@ -317,23 +317,11 @@
         }
       });
       function update(dt) {
-        if (worm.wrapping) {
-          const wrapDuration = Math.max(.38, Math.min(.62, 11 / worm.response));
-          worm.wrap = Math.min(1, worm.wrap + dt / wrapDuration);
-          if (worm.wrap >= 1) {
-            worm.cycle += 1;
-            worm.phase = 0;
-            worm.targetPhase = 0;
-            worm.wrapping = false;
-            worm.wrap = 0;
-          }
-          return;
-        }
         worm.phase += (worm.targetPhase - worm.phase) * Math.min(1, dt * worm.response);
-        if (worm.targetPhase === 6 && Math.abs(worm.phase - 6) < .012) {
-          worm.phase = 6;
-          worm.wrapping = true;
-          worm.wrap = 0;
+        if (worm.targetPhase === 7 && Math.abs(worm.phase - 7) < .012) {
+          worm.cycle += 1;
+          worm.phase = 0;
+          worm.targetPhase = 0;
         }
         distanceLabel.style.width = Math.min(100, (worm.scroll / Math.max(1, w)) * 100) + '%';
         
@@ -347,7 +335,7 @@
         ctx.translate(sceneX + DESIGN_H * scale, sceneY);
         ctx.rotate(Math.PI / 2);
         ctx.scale(scale, scale);
-        ctx.translate(-cameraOffset(), 0);
+        ctx.translate(-cameraOffset(worm.phase), 0);
         drawWormFrame(currentWormFrame(worm.phase), worm.color);
         ctx.restore();
       }
